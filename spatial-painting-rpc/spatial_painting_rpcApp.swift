@@ -9,18 +9,20 @@ import SwiftUI
 
 @main
 struct spatial_painting_rpcApp: App {
-
-    @State private var appModel = AppModel()
-
+    
+    @ObservedObject private var appModel = AppModel()
+    @State private var model = ViewModel()
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environment(appModel)
+                .environmentObject(appModel)
         }
-
+        
         ImmersiveSpace(id: appModel.immersiveSpaceID) {
             ImmersiveView()
-                .environment(appModel)
+                .environmentObject(appModel)
+                .environment(model)
                 .onAppear {
                     appModel.immersiveSpaceState = .open
                 }
@@ -29,5 +31,5 @@ struct spatial_painting_rpcApp: App {
                 }
         }
         .immersionStyle(selection: .constant(.mixed), in: .mixed)
-     }
+    }
 }
