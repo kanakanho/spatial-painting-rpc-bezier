@@ -9,9 +9,7 @@ import SwiftUI
 
 @main
 struct spatial_painting_rpcApp: App {
-    
     @ObservedObject private var appModel = AppModel()
-    @State private var model = ViewModel()
     
     var body: some Scene {
         WindowGroup {
@@ -22,7 +20,6 @@ struct spatial_painting_rpcApp: App {
         ImmersiveSpace(id: appModel.immersiveSpaceID) {
             ImmersiveView()
                 .environmentObject(appModel)
-                .environment(model)
                 .onAppear {
                     appModel.immersiveSpaceState = .open
                 }

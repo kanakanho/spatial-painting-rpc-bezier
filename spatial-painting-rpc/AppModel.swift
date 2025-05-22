@@ -18,6 +18,8 @@ class AppModel: ObservableObject {
     }
     @Published var immersiveSpaceState = ImmersiveSpaceState.closed
     
+    var model = ViewModel()
+    
     @Published var sendExchangeDataWrapper = ExchangeDataWrapper()
     @Published var receiveExchangeDataWrapper = ExchangeDataWrapper()
     @Published var mcPeerIDUUIDWrapper = MCPeerIDUUIDWrapper()
@@ -29,15 +31,18 @@ class AppModel: ObservableObject {
         let receiveExchangeDataWrapper = ExchangeDataWrapper()
         let mcPeerIDUUIDWrapper = MCPeerIDUUIDWrapper()
         
+        let rpcModel = RPCModel(sendExchangeDataWrapper: sendExchangeDataWrapper, receiveExchangeDataWrapper: receiveExchangeDataWrapper, mcPeerIDUUIDWrapper: mcPeerIDUUIDWrapper)
+        
         self.sendExchangeDataWrapper = sendExchangeDataWrapper
         self.receiveExchangeDataWrapper = receiveExchangeDataWrapper
         self.mcPeerIDUUIDWrapper = mcPeerIDUUIDWrapper
         
-        self.rpcModel = RPCModel(sendExchangeDataWrapper: sendExchangeDataWrapper, receiveExchangeDataWrapper: receiveExchangeDataWrapper, mcPeerIDUUIDWrapper: mcPeerIDUUIDWrapper)
+        self.rpcModel = rpcModel
         self.peerManager = PeerManager(
             sendExchangeDataWrapper: sendExchangeDataWrapper,
             receiveExchangeDataWrapper: receiveExchangeDataWrapper,
             mcPeerIDUUIDWrapper: mcPeerIDUUIDWrapper
         )
+//        self.model = ViewModel()
     }
 }

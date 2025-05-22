@@ -6,24 +6,120 @@
 //
 
 import SwiftUI
+import ARKit
 import RealityKit
 import RealityKitContent
 
 struct ImmersiveView: View {
     @EnvironmentObject private var appModel: AppModel
-    @Environment(ViewModel.self) var model
     @Environment(\.dismissImmersiveSpace) var dismissImmersiveSpace
     @Environment(\.openWindow) var openWindow
     
     @State var latestRightIndexFingerCoordinates: simd_float4x4 = .init()
+    @State var lastIndexPose: SIMD3<Float>?
     
     var body: some View {
         RealityView { content in
-            content.add(model.setupContentEntity())
+            do {
+                let scene = try await Entity(named: "Immersive", in: realityKitContentBundle)
+                appModel.rpcModel.painting.colorPaletModel.setSceneEntity(scene: scene)
+                
+                content.add(appModel.model.setupContentEntity())
+                appModel.model.initColorPaletNodel(colorPaletModel: appModel.rpcModel.painting.colorPaletModel)
+                content.add(appModel.rpcModel.painting.colorPaletModel.colorPaletEntity)
+                appModel.rpcModel.painting.colorPaletModel.initEntity()
+                let root = appModel.rpcModel.painting.paintingCanvas.root
+                content.add(root)
+                
+                for fingerEntity in appModel.model.fingerEntities.values {
+                    _ = content.subscribe(to: CollisionEvents.Began.self, on: fingerEntity) { collisionEvent in
+                        // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
+                        if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
+                            return
+                        }
+
+                        if appModel.rpcModel.painting.colorPaletModel.colorNames.contains(collisionEvent.entityB.name) {
+                            appModel.model.changeFingerColor(entity: fingerEntity, colorName: collisionEvent.entityB.name)
+                        } else if (collisionEvent.entityB.name == "clear") {
+                            _ = appModel.model.recordTime(isBegan: true)
+                        }
+                    }
+
+                    _ = content.subscribe(to: CollisionEvents.Ended.self, on: fingerEntity) { collisionEvent in
+                        // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
+                        if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
+                            return
+                        }
+                        
+                        if appModel.rpcModel.painting.colorPaletModel.colorNames.contains(collisionEvent.entityB.name) {
+                            _ = appModel.rpcModel.sendRequest(
+                                RequestSchema(
+                                    peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
+                                    method: .setStrokeColor,
+                                    param: .setStrokeColor(
+                                        .init(strokeColorName: collisionEvent.entityB.name)
+                                    )
+                                )
+                            )
+                        } else if (collisionEvent.entityB.name == "clear") {
+                            if appModel.model.recordTime(isBegan: false) {
+                                _ = appModel.rpcModel.sendRequest(
+                                    RequestSchema(
+                                        peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
+                                        method: .removeStroke,
+                                        param: .removeStroke(.init())
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+                
+                root.components.set(ClosureComponent(closure: { deltaTime in
+                    var anchors = [HandAnchor]()
+                    
+                    if let left = appModel.model.latestHandTracking.left {
+                        anchors.append(left)
+                    }
+                    
+                    if let right = appModel.model.latestHandTracking.right {
+                        anchors.append(right)
+                    }
+                    
+                    // Loop through each anchor the app detects.
+                    for anchor in anchors {
+                        /// The hand skeleton that associates the anchor.
+                        guard let handSkeleton = anchor.handSkeleton else {
+                            continue
+                        }
+
+                        /// The current position and orientation of the thumb tip.
+                        let thumbPos = (
+                            anchor.originFromAnchorTransform * handSkeleton.joint(.thumbTip).anchorFromJointTransform).position
+
+                        /// The current position and orientation of the index finger tip.
+                        let indexPos = (anchor.originFromAnchorTransform * handSkeleton.joint(.indexFingerTip).anchorFromJointTransform).position
+
+                        /// The threshold to check if the index and thumb are close.
+                        let pinchThreshold: Float = 0.03
+
+                        // Update the last index position if the distance
+                        // between the thumb tip and index finger tip is
+                        // less than the pinch threshold.
+                        if length(thumbPos - indexPos) < pinchThreshold {
+                            lastIndexPose = indexPos
+                        }
+                    }
+                }))
+
+            } catch {
+                print("Error in RealityView's make: \(error)")
+            }
+            
         }
         .task {
             do {
-                try await model.session.run([model.sceneReconstruction, model.handTracking])
+                try await appModel.model.session.run([appModel.model.sceneReconstruction, appModel.model.handTracking])
             } catch {
                 print("Failed to start session: \(error)")
                 await dismissImmersiveSpace()
@@ -31,31 +127,80 @@ struct ImmersiveView: View {
             }
         }
         .task {
-            await model.processHandUpdates()
+            await appModel.model.processHandUpdates()
         }
         .task(priority: .low) {
-            await model.processReconstructionUpdates()
+            await appModel.model.processReconstructionUpdates()
         }
         .task {
-            await model.monitorSessionEvents()
+            await appModel.model.monitorSessionEvents()
         }
         .task {
-            await model.processWorldUpdates()
+            await appModel.model.processWorldUpdates()
         }
         .task {
-            model.showFingerTipSpheres()
+            appModel.model.showFingerTipSpheres()
         }
-        .onChange(of: model.latestRightIndexFingerCoordinates) {
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .targetedToAnyEntity()
+                .onChanged({ _ in
+                    // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
+                    if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
+                        return
+                    }
+                    if let pos = lastIndexPose {
+                        appModel.rpcModel.painting.paintingCanvas.addPoint(pos)
+                        let matrix:[Double] = [pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(), 1]
+                        for (id,affineMatrix) in appModel.rpcModel.coordinateTransforms.affineMatrixs {
+                            let clientPos = matmul4x4_4x1(affineMatrix.doubleList, matrix)
+                            _ = appModel.rpcModel.sendRequest(
+                                RequestSchema(
+                                    peerId: appModel.rpcModel.mcPeerIDUUIDWrapper.mine.hash,
+                                    method: .addStrokePoint,
+                                    param: .addStrokePoint(.init(
+                                        point: .init(x: Float(clientPos[0]), y: Float(clientPos[1]), z: Float(clientPos[2]))
+                                    ))),
+                                mcPeerId: id
+                            )
+                        }
+                    }
+                })
+                .onEnded({ _ in
+                    // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
+                    if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
+                        return
+                    }
+
+                    _ = appModel.rpcModel.sendRequest(
+                        RequestSchema(
+                            peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
+                            method: .finishStroke,
+                            param: .finishStroke(.init())
+                        )
+                    )
+                })
+        )
+        .onChange(of: appModel.rpcModel.coordinateTransforms.affineMatrixs) {
+            if !appModel.model.isCanvasEnabled && !appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
+                appModel.model.isCanvasEnabled = true
+            }
+        }
+        .onChange(of: appModel.model.latestRightIndexFingerCoordinates) {
             if appModel.rpcModel.coordinateTransforms.requestTransform {
-                latestRightIndexFingerCoordinates = model.latestRightIndexFingerCoordinates
+                print("change: appModel.model.latestRightIndexFingerCoordinates"
+                )
+                print(appModel.model.latestRightIndexFingerCoordinates)
+                latestRightIndexFingerCoordinates = appModel.model.latestRightIndexFingerCoordinates
             }
         }
         .onChange(of: appModel.rpcModel.coordinateTransforms.requestTransform){
             if appModel.rpcModel.coordinateTransforms.requestTransform {
-                model.fingerSignal(hand: .right, flag: true)
+                print("immersive coordinateTransforms")
+                appModel.model.fingerSignal(hand: .right, flag: true)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                     Task{
-                        model.fingerSignal(hand: .right, flag: false)
+                        appModel.model.fingerSignal(hand: .right, flag: false)
                         let rpcResult = appModel.rpcModel.sendRequest(
                             RequestSchema(
                                 peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,

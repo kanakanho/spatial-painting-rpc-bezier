@@ -15,12 +15,14 @@ import Combine
 enum Method: Codable {
     case error(ErrorEntitiy.Method)
     case coordinateTransformEntity(CoordinateTransformEntity.Method)
+    case paintingEntity(PaintingEntity.Method)
 }
 
 /// PRC の Param として Entity を定義
 enum Param: Codable {
     case error(ErrorEntitiy.Param)
     case coordinateTransformEntity(CoordinateTransformEntity.Param)
+    case paintingEntity(PaintingEntity.Param)
     
     /// カスタムエンコード
     func encode(to encoder: Encoder) throws {
@@ -30,6 +32,8 @@ enum Param: Codable {
             try container.encode(param, forKey: .error)
         case .coordinateTransformEntity(let param):
             try container.encode(param, forKey: .coordinateTransformEntity)
+        case .paintingEntity(let param):
+            try container.encode(param, forKey: .paintingEntity)
         }
     }
     
@@ -40,16 +44,18 @@ enum Param: Codable {
             self = .error(param)
         } else if let param = try? container.decode(CoordinateTransformEntity.Param.self, forKey: .coordinateTransformEntity) {
             self = .coordinateTransformEntity(param)
+        } else if let param = try? container.decode(PaintingEntity.Param.self, forKey: .paintingEntity) {
+            self = .paintingEntity(param)
         } else {
-            throw DecodingError.dataCorruptedError(forKey: CodingKeys.user, in: container, debugDescription: "Invalid parameter type")
+            throw DecodingError.dataCorruptedError(forKey: CodingKeys.error, in: container, debugDescription: "Invalid parameter type")
         }
     }
     
     /// カスタムエンコード/デコードのための Key
     private enum CodingKeys: String, CodingKey {
-        case user
         case error
         case coordinateTransformEntity
+        case paintingEntity
     }
 }
 
@@ -108,6 +114,20 @@ struct RequestSchema: Codable {
         self.param = .error(param)
     }
     
+    init(id: UUID, peerId: Int, method: PaintingEntity.Method, param: PaintingEntity.Param) {
+        self.id = id
+        self.peerId = peerId
+        self.method = .paintingEntity(method)
+        self.param = .paintingEntity(param)
+    }
+    
+    init(peerId: Int, method: PaintingEntity.Method, param: PaintingEntity.Param) {
+        self.id = UUID()
+        self.peerId = peerId
+        self.method = .paintingEntity(method)
+        self.param = .paintingEntity(param)
+    }
+    
     /// カスタムエンコード
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
@@ -149,6 +169,7 @@ struct RPCResult {
 /// RPCを管理するクラス
 /// このクラスの中で利用できるメソッドのみ、RPCでの呼び出しが可能
 /// - Warning: このクラスの中以外のメソッドを呼び出すためにRPCを利用してはいけません
+@MainActor
 class RPCModel: ObservableObject {
     /// 送信するデータ
     private var sendExchangeDataWrapper = ExchangeDataWrapper()
@@ -179,6 +200,7 @@ class RPCModel: ObservableObject {
     }
     
     @Published var coordinateTransforms = CoordinateTransforms()
+    @Published var painting = Painting()
     
     /// RPC の実行と RPC リクエストの送信
     ///
@@ -199,6 +221,14 @@ class RPCModel: ObservableObject {
             rpcResult = coordinateTransforms.setTransform(param: p)
         case let (.coordinateTransformEntity(.setState), .coordinateTransformEntity(.setState(p))):
             rpcResult = coordinateTransforms.setState(param: p)
+        case (.paintingEntity(.finishStroke),.paintingEntity(.finishStroke(_))):
+            painting.finishStroke()
+        case let
+            (.paintingEntity(.setStrokeColor),.paintingEntity(.setStrokeColor(p))):
+                painting.setStrokeColor(param: p)
+        case
+            (.paintingEntity(.removeStroke),.paintingEntity(.removeStroke(_))):
+                painting.removeStroke()
         default:
             return RPCResult("Invalid request")
         }
@@ -231,6 +261,12 @@ class RPCModel: ObservableObject {
             rpcResult = coordinateTransforms.setTransform(param: p)
         case let (.coordinateTransformEntity(.setState), .coordinateTransformEntity(.setState(p))):
             rpcResult = coordinateTransforms.setState(param: p)
+        case let (.paintingEntity(.addStrokePoint),.paintingEntity(.addStrokePoint(p))):
+            // 自身に対して追加操作を行わない
+            break
+        case let
+            (.paintingEntity(.setStrokeColor),.paintingEntity(.setStrokeColor(p))):
+                painting.setStrokeColor(param: p)
         default:
             return RPCResult("Invalid request")
         }
@@ -258,6 +294,16 @@ class RPCModel: ObservableObject {
             rpcResult = coordinateTransforms.setTransform(param: p)
         case let (.coordinateTransformEntity(.setState), .coordinateTransformEntity(.setState(p))):
             rpcResult = coordinateTransforms.setState(param: p)
+        case let (.paintingEntity(.addStrokePoint),.paintingEntity(.addStrokePoint(p))):
+            painting.addStrokePoint(param: p)
+        case  (.paintingEntity(.finishStroke),.paintingEntity(.finishStroke(_))):
+            painting.finishStroke()
+        case let
+            (.paintingEntity(.setStrokeColor),.paintingEntity(.setStrokeColor(p))):
+                painting.setStrokeColor(param: p)
+        case 
+            (.paintingEntity(.removeStroke),.paintingEntity(.removeStroke(_))):
+                painting.removeStroke()
         default:
             return RPCResult("Invalid request")
         }

@@ -12,15 +12,13 @@ import SwiftUI
 @Observable
 @MainActor
 class ViewModel {
-    let colorPaletModel = ColorPaletModel()
-    var canvas = PaintingCanvas()
-    
     var isCanvasEnabled: Bool = false
+    var colorPaletModel: ColorPaletModel?
     
-    let session = ARKitSession()
-    let handTracking = HandTrackingProvider()
-    let sceneReconstruction = SceneReconstructionProvider()
-    let worldTracking = WorldTrackingProvider()
+    var session = ARKitSession()
+    var handTracking = HandTrackingProvider()
+    var sceneReconstruction = SceneReconstructionProvider()
+    var worldTracking = WorldTrackingProvider()
     
     private var meshEntities = [UUID: ModelEntity]()
     var contentEntity = Entity()
@@ -32,19 +30,6 @@ class ViewModel {
     var latestLeftIndexFingerCoordinates: simd_float4x4 = .init()
     
     var latestWorldTracking: WorldAnchor = .init(originFromAnchorTransform: .init())
-    
-    var isGlab: Bool = false
-    
-    enum OperationLock {
-        case none
-        case right
-        case left
-    }
-    
-    enum HandGlab {
-        case right
-        case left
-    }
     
     // ここで反発係数を決定している可能性あり
     let material = PhysicsMaterialResource.generate(friction: 0.8,restitution: 0.0)
@@ -83,18 +68,7 @@ class ViewModel {
             entity.removeFromParent()
         }
     }
-    
-    func changeFingerColor(entity: Entity, colorName: String) {
-        for color in colorPaletModel.colors {
-            let words = color.accessibilityName.split(separator: " ")
-            if let name = words.last, name == colorName {
-                let material = SimpleMaterial(color: color, isMetallic: true)
-                entity.components.set(ModelComponent(mesh: .generateSphere(radius: 0.01), materials: [material]))
-                break
-            }
-        }
-    }
-    
+
     // 指先の球の色を変更 added by nagao 2025/3/11
     func fingerSignal(hand: HandAnchor.Chirality, flag: Bool) {
         if flag {
@@ -106,14 +80,6 @@ class ViewModel {
             let material = SimpleMaterial(color: silverColor, isMetallic: true)
             self.fingerEntities[hand]?.components.set(ModelComponent(mesh: .generateSphere(radius: 0.01), materials: [material]))
         }
-    }
-    
-    var dataProvidersAreSupported: Bool {
-        HandTrackingProvider.isSupported && SceneReconstructionProvider.isSupported
-    }
-    
-    var isReadyToRun: Bool {
-        handTracking.state == .initialized && sceneReconstruction.state == .initialized
     }
     
     func processReconstructionUpdates() async {
@@ -199,7 +165,6 @@ class ViewModel {
                     guard let handSkeletonAnchorTransform = latestHandTracking.left?.handSkeleton?.joint(.indexFingerTip).anchorFromJointTransform else { return }
                     latestLeftIndexFingerCoordinates = handAnchor.originFromAnchorTransform * handSkeletonAnchorTransform
                     watchLeftPalm(handAnchor: handAnchor)
-                    // webSocketClient.sendHandAnchor(handAnchor)
                 } else if anchor.chirality == .right {
                     latestHandTracking.right = anchor
                     guard let handAnchor = latestHandTracking.right else { continue }
@@ -226,11 +191,13 @@ class ViewModel {
         let positionMatrix: simd_float4x4 = handAnchor.originFromAnchorTransform * middleFingerIntermediateBase.anchorFromJointTransform
         
         if (positionMatrix.codable[1][1] < positionMatrix.codable[2][2]) {
-            colorPaletModel.colorPaletEntityDisable()
+            colorPaletModel?.colorPaletEntityDisable()
             return
         }
         
-        colorPaletModel.colorPaletEntityEnabled()
+        if !(colorPaletModel?.colorPaletEntity.isEnabled)! {
+            colorPaletModel?.colorPaletEntityEnabled()
+        }
         
         guard let wristBase = handAnchor.handSkeleton?.joint(.wrist) else {
             return
@@ -238,19 +205,18 @@ class ViewModel {
         
         let wristMatrix: simd_float4x4 = handAnchor.originFromAnchorTransform * wristBase.anchorFromJointTransform
         
-        colorPaletModel.updatePosition(position: positionMatrix.position, wristPosition: wristMatrix.position)
+        colorPaletModel?.updatePosition(position: positionMatrix.position, wristPosition: wristMatrix.position)
     }
     
-    // 色を選択する added by nagao 2025/3/22
-    func selectColor(colorName: String) {
-        for color in colorPaletModel.colors {
+    func changeFingerColor(entity: Entity, colorName: String) {
+        guard let colors = colorPaletModel?.colors else {
+            return
+        }
+        for color in colors {
             let words = color.accessibilityName.split(separator: " ")
             if let name = words.last, name == colorName {
-                //print("💥 Selected color accessibilityName \(color.accessibilityName)")
-                colorPaletModel.colorPaletEntityDisable()
-                colorPaletModel.setActiveColor(color: color)
-                canvas.setActiveColor(color: color)
-                //canvas.currentStroke?.setActiveColor(color: color)
+                let material = SimpleMaterial(color: color, isMetallic: true)
+                entity.components.set(ModelComponent(mesh: .generateSphere(radius: 0.01), materials: [material]))
                 break
             }
         }
@@ -338,5 +304,9 @@ class ViewModel {
         xStroke.setOrientation(simd_quatf(transform), relativeTo: nil)
         xStroke.components.set(InputTargetComponent(allowedInputTypes: .all))
         contentEntity.addChild(xStroke)
+    }
+    
+    func initColorPaletNodel(colorPaletModel: ColorPaletModel) {
+        self.colorPaletModel = colorPaletModel
     }
 }
