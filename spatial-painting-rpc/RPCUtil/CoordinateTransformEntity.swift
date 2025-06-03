@@ -172,6 +172,34 @@ class CoordinateTransforms: ObservableObject {
             affineMatrixs[otherPeerId] = coordinateTransformEntity.affineMatrixBtoA
         }
     }
+    
+    func initBallTransform() -> (RPCResult, simd_float4x4) {
+        if affineMatrixs.isEmpty {
+            return (RPCResult("計算し終わったアフィン行列が空です"), .init())
+        }
+        if myPeerId == 0 || otherPeerId == 0 {
+            return (RPCResult("座標を取得するPeerが取得できません"), .init())
+        }
+        if coordinateTransformEntity.A.isEmpty || coordinateTransformEntity.B.isEmpty {
+            return (RPCResult("座標変換行列が取得できません"), .init())
+        }
+        
+        guard let affineMatrix =  affineMatrixs[otherPeerId] else {
+            return(RPCResult("座標変換行列が取得できません"), .init())
+        }
+        
+        var fristRightFingerMatrix: simd_float4x4 = .init()
+        if myPeerId > otherPeerId {
+            fristRightFingerMatrix = coordinateTransformEntity.A[0].tosimd_float4x4()
+        } else {
+            fristRightFingerMatrix = coordinateTransformEntity.B[0].tosimd_float4x4()
+        }
+        
+        return (
+            RPCResult(),
+            inverseMatrix(affineMatrix.doubleList).tosimd_float4x4() * fristRightFingerMatrix
+        )
+    }
 }
 
 

@@ -21,7 +21,7 @@ struct GetTransformMatrixClientView: View {
     
     var body: some View {
         VStack {
-            Text("3. 右手の人差し指の位置を確認 \(matrixCount) / \(matrixCountLimit)").font(.title)
+            Text("3. 右手の人差し指の位置を確認 \(matrixCount + 1) / \(matrixCountLimit)").font(.title)
             Divider()
             
             Text("相手に合わせて、右手の人差し指を合わせてください")
@@ -40,11 +40,12 @@ struct GetTransformMatrixClientView: View {
     }
     
     private func returnToInitial() {
-        let rpcResult = rpcModel.sendRequest(RequestSchema(
-            peerId: rpcModel.mcPeerIDUUIDWrapper.mine.hash,
-            method: .resetPeer,
-            param: .resetPeer(.init())
-        )
+        let rpcResult = rpcModel.sendRequest(
+            RequestSchema(
+                peerId: rpcModel.mcPeerIDUUIDWrapper.mine.hash,
+                method: .resetPeer,
+                param: .resetPeer(.init())
+            )
         )
         if !rpcResult.success {
             errorMessage = rpcResult.errorMessage

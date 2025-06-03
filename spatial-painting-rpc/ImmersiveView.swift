@@ -37,14 +37,14 @@ struct ImmersiveView: View {
                         if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
                             return
                         }
-
+                        
                         if appModel.rpcModel.painting.colorPaletModel.colorNames.contains(collisionEvent.entityB.name) {
                             appModel.model.changeFingerColor(entity: fingerEntity, colorName: collisionEvent.entityB.name)
                         } else if (collisionEvent.entityB.name == "clear") {
                             _ = appModel.model.recordTime(isBegan: true)
                         }
                     }
-
+                    
                     _ = content.subscribe(to: CollisionEvents.Ended.self, on: fingerEntity) { collisionEvent in
                         // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
                         if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
@@ -92,17 +92,17 @@ struct ImmersiveView: View {
                         guard let handSkeleton = anchor.handSkeleton else {
                             continue
                         }
-
+                        
                         /// The current position and orientation of the thumb tip.
                         let thumbPos = (
                             anchor.originFromAnchorTransform * handSkeleton.joint(.thumbTip).anchorFromJointTransform).position
-
+                        
                         /// The current position and orientation of the index finger tip.
                         let indexPos = (anchor.originFromAnchorTransform * handSkeleton.joint(.indexFingerTip).anchorFromJointTransform).position
-
+                        
                         /// The threshold to check if the index and thumb are close.
                         let pinchThreshold: Float = 0.03
-
+                        
                         // Update the last index position if the distance
                         // between the thumb tip and index finger tip is
                         // less than the pinch threshold.
@@ -111,7 +111,7 @@ struct ImmersiveView: View {
                         }
                     }
                 }))
-
+                
             } catch {
                 print("Error in RealityView's make: \(error)")
             }
@@ -171,7 +171,7 @@ struct ImmersiveView: View {
                     if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
                         return
                     }
-
+                    
                     _ = appModel.rpcModel.sendRequest(
                         RequestSchema(
                             peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
@@ -185,6 +185,14 @@ struct ImmersiveView: View {
             if !appModel.model.isCanvasEnabled && !appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
                 appModel.model.isCanvasEnabled = true
             }
+            
+            let (rpcResult, transform) = appModel.rpcModel.coordinateTransforms.initBallTransform()
+            
+            if !rpcResult.success {
+                print(rpcResult.errorMessage)
+            }
+            
+            appModel.model.initBall(transform: transform)
         }
         .onChange(of: appModel.model.latestRightIndexFingerCoordinates) {
             if appModel.rpcModel.coordinateTransforms.requestTransform {

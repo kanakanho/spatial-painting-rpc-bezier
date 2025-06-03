@@ -43,6 +43,5 @@ class AppModel: ObservableObject {
             receiveExchangeDataWrapper: receiveExchangeDataWrapper,
             mcPeerIDUUIDWrapper: mcPeerIDUUIDWrapper
         )
-//        self.model = ViewModel()
     }
 }

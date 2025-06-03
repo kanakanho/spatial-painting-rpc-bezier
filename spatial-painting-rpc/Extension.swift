@@ -125,6 +125,17 @@ extension [[Double]] {
             SIMD4<Float>(self[3][0].toFloat(), self[3][1].toFloat(), self[3][2].toFloat(), self[3][3].toFloat())
         ])
     }
+    
+    var isIncludeNaN: Bool {
+        for row in self {
+            for value in row {
+                if value.isNaN {
+                    return true
+                }
+            }
+        }
+        return false
+    }
 }
 
 extension [[Float]] {

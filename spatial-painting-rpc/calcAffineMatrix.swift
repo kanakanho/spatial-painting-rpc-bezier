@@ -211,6 +211,11 @@ func rotation(axis: String, _ mine_hand_arrows_shift: [[Double]] ,_ world_hand_a
         return[]
     }
     
+    // 正規化
+    for i in 0..<3 {
+        world_arrows_shift[i] = world_arrows_shift[i] / sqrt(world_arrows_shift[0] * world_arrows_shift[0] + world_arrows_shift[1] * world_arrows_shift[1] + world_arrows_shift[2] * world_arrows_shift[2])
+    }
+    
     var mine_arrows_shift:[Double] = []
     switch axis {
     case "x":
@@ -221,6 +226,11 @@ func rotation(axis: String, _ mine_hand_arrows_shift: [[Double]] ,_ world_hand_a
         mine_arrows_shift = mine_hand_arrows_shift[3]
     default:
         return[]
+    }
+    
+    // 正規化
+    for i in 0..<3 {
+        mine_arrows_shift[i] = mine_arrows_shift[i] / sqrt(mine_arrows_shift[0] * mine_arrows_shift[0] + mine_arrows_shift[1] * mine_arrows_shift[1] + mine_arrows_shift[2] * mine_arrows_shift[2])
     }
     
     if world_arrows_shift.count != 3 {
@@ -315,16 +325,12 @@ func shiftRotateAffineMatrix(_ A: [[[Double]]], _ B: [[[Double]]], _ affineMatri
     let (x,y,z) = affineMatrixToAngle(B[0])
     
     // B基準の単位ベクトル群（+X, +Y, +Z 方向）
-    var B_vectors: [[Double]] = [
+    let B_vectors: [[Double]] = [
         B_pos,
         [B_pos[0] + cos(x), B_pos[1] + cos(y), B_pos[2] + cos(z)],
         [B_pos[0] + cos(z), B_pos[1] + cos(x), B_pos[2] + cos(y)],
         [B_pos[0] + cos(y), B_pos[1] + cos(z), B_pos[2] + cos(x)]
     ]
-    
-    // 正規化
-    let B_vectors_norm = B_vectors.map { sqrt(pow($0[0], 2) + pow($0[1], 2) + pow($0[2], 2)) }
-    B_vectors = B_vectors.map { $0.map { $0 / B_vectors_norm[0] } }
     
     // affineMatrixでB_vectorsをA空間に変換
     let transformedVectors = B_vectors.map { matmul4x4_4x1(affineMatrix, $0) }
@@ -401,9 +407,12 @@ func calcAffineMatrix(_ A: [[[Double]]], _ B: [[[Double]]]) -> [[Double]] {
     print("removeScaleAffineMatrix")
     print(affineMatrix)
     
-    //    affineMatrix = shiftRotateAffineMatrix(A, B, affineMatrix)
-    //    print("shiftRotateAffineMatrix")
-    //    print(affineMatrix)
+//    let rotateAffineMatrix = shiftRotateAffineMatrix(A, B, affineMatrix)
+//    print("shiftRotateAffineMatrix")
+//    print(rotateAffineMatrix)
+//    if !rotateAffineMatrix.isIncludeNaN {
+//        affineMatrix = rotateAffineMatrix
+//    }
     
     return affineMatrix
 }

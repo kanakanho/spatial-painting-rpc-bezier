@@ -21,7 +21,7 @@ struct GetTransformMatrixHostView: View {
     
     var body: some View {
         VStack {
-            Text("3. 右手の人差し指の位置を確認 \(matrixCount) / \(matrixCountLimit)").font(.title)
+            Text("3. 右手の人差し指の位置を確認 \(matrixCount + 1) / \(matrixCountLimit)").font(.title)
             Divider()
             
             Text("開始ボタンを押した後に、右手の人差し指で相手の右手の人差し指に触れてください")
@@ -30,7 +30,7 @@ struct GetTransformMatrixHostView: View {
             Button(action: {
                 start()
             }){
-                Text("\(matrixCount)回目 開始")
+                Text("\(matrixCount + 1)回目 開始")
             }
             .disabled(rpcModel.coordinateTransforms.requestTransform)
             
