@@ -88,14 +88,14 @@ func eqSolve(_ A: [[Double]], _ Q: [[Double]]) -> [[Double]] {
             print("Warning: U[\(i), \(i)] is nearly zero. Adding small value.")
             U[i][i] = 1e-8
         }
-        var dot:[Double] = [0, 0, 0]
+        var dot:[Double] = [0, 0, 0, 0]
         for j in stride(from: 3, through: i+1, by: -1) {
-            for k in 0..<3 {
-                dot[k] += U[i][j] * X[j][k]
-            }
+           for k in 0..<4 {
+               dot[k] += U[i][j] * X[j][k]
+           }
         }
-        for k in 0..<3 {
-            X[i][k] = (Y[i][k] - dot[k]) / U[i][i]
+        for k in 0..<4 {
+           X[i][k] = (Y[i][k] - dot[k]) / U[i][i]
         }
     }
     
@@ -198,80 +198,31 @@ func matmul4x4_4x1(_ A: [[Double]], _ B: [Double]) -> [Double] {
     return result
 }
 
-func rotation(axis: String, _ mine_hand_arrows_shift: [[Double]] ,_ world_hand_arrows_shfit: [[Double]], _ affineMatrix: [[Double]]) -> [[Double]] {
-    var world_arrows_shift:[Double] = []
-    switch axis {
-    case "x":
-        world_arrows_shift = world_hand_arrows_shfit[1]
-    case "y":
-        world_arrows_shift = world_hand_arrows_shfit[2]
-    case "z":
-        world_arrows_shift = world_hand_arrows_shfit[3]
-    default:
-        return[]
-    }
+func rotation(_ myAffineMatrix: [[Double]] ,_ otherAffineMatrix: [[Double]], _ affineMatrix: [[Double]]) -> [[Double]] {
+    let myRotationX = atan2(myAffineMatrix[2][1], myAffineMatrix[2][2])
+    let myRotationY = atan2(-myAffineMatrix[2][0], sqrt(pow(myAffineMatrix[2][1], 2) + pow(myAffineMatrix[2][2], 2)))
+    let myRotationZ = atan2(myAffineMatrix[1][0], myAffineMatrix[0][0])
     
-    // 正規化
-    for i in 0..<3 {
-        world_arrows_shift[i] = world_arrows_shift[i] / sqrt(world_arrows_shift[0] * world_arrows_shift[0] + world_arrows_shift[1] * world_arrows_shift[1] + world_arrows_shift[2] * world_arrows_shift[2])
-    }
+    let otherRotationX = atan2(otherAffineMatrix[2][1], otherAffineMatrix[2][2])
+    let otherRotationY = atan2(-otherAffineMatrix[2][0], sqrt(pow(otherAffineMatrix[2][1], 2) + pow(otherAffineMatrix[2][2], 2)))
+    let otherRotationZ = atan2(otherAffineMatrix[1][0], otherAffineMatrix[0][0])
     
-    var mine_arrows_shift:[Double] = []
-    switch axis {
-    case "x":
-        mine_arrows_shift = mine_hand_arrows_shift[1]
-    case "y":
-        mine_arrows_shift = mine_hand_arrows_shift[2]
-    case "z":
-        mine_arrows_shift = mine_hand_arrows_shift[3]
-    default:
-        return[]
-    }
+    let theta_x = myRotationX - otherRotationX
+    let theta_y = myRotationY - otherRotationY
+    let theta_z = myRotationZ - otherRotationZ
     
-    // 正規化
-    for i in 0..<3 {
-        mine_arrows_shift[i] = mine_arrows_shift[i] / sqrt(mine_arrows_shift[0] * mine_arrows_shift[0] + mine_arrows_shift[1] * mine_arrows_shift[1] + mine_arrows_shift[2] * mine_arrows_shift[2])
-    }
-    
-    if world_arrows_shift.count != 3 {
-        print("Error: world_arrows_shift must be 3 elements")
-        return []
-    }
-    
-    if mine_arrows_shift.count != 3 {
-        print("Error: mine_arrows_shift must be 3 elements")
-        return []
-    }
-    
-    var theta_x = asin(world_arrows_shift[0])
-    if axis == "x" {
-        let mine_theta_x = asin(mine_arrows_shift[0])
-        theta_x = mine_theta_x - theta_x
-    }
     let theta_x_rotation = [
         [1, 0, 0, 0],
         [0, cos(theta_x), -sin(theta_x), 0],
         [0, sin(theta_x), cos(theta_x), 0],
         [0, 0, 0, 1]
     ]
-    
-    var theta_y = asin(world_arrows_shift[1])
-    if axis == "y" {
-        let mine_theta_y = asin(mine_arrows_shift[1])
-        theta_y = mine_theta_y - theta_y
-    }
     let theta_y_rotation = [
         [cos(theta_y), 0, sin(theta_y), 0],
         [0, 1, 0, 0],
         [-sin(theta_y), 0, cos(theta_y), 0],
         [0, 0, 0, 1]
     ]
-    
-    var theta_z = asin(world_arrows_shift[2])
-    if axis == "z" {
-        let mine_theta_z = asin(mine_arrows_shift[2])
-        theta_z = mine_theta_z - theta_z
-    }
     let theta_z_rotation = [
         [cos(theta_z), -sin(theta_z), 0, 0],
         [sin(theta_z), cos(theta_z), 0, 0],
@@ -279,36 +230,15 @@ func rotation(axis: String, _ mine_hand_arrows_shift: [[Double]] ,_ world_hand_a
         [0, 0, 0, 1]
     ]
     
+    
     let rotationMatrix = matmul(matmul(theta_x_rotation, theta_y_rotation), theta_z_rotation)
     
-    switch axis {
-    case "x":
-        let returnAffineMatrix = [
-            [rotationMatrix[0][0], rotationMatrix[0][1], rotationMatrix[0][2], affineMatrix[0][3]],
-            [rotationMatrix[1][0], rotationMatrix[1][1], rotationMatrix[1][2], affineMatrix[1][3]],
-            [rotationMatrix[2][0], rotationMatrix[2][1], rotationMatrix[2][2], affineMatrix[2][3]],
-            [0, 0, 0, 1]
-        ]
-        return returnAffineMatrix
-    case "y":
-        let returnAffineMatrix = [
-            [rotationMatrix[0][0], rotationMatrix[0][1], rotationMatrix[0][2], affineMatrix[0][3]],
-            [rotationMatrix[1][0], rotationMatrix[1][1], rotationMatrix[1][2], affineMatrix[1][3]],
-            [rotationMatrix[2][0], rotationMatrix[2][1], rotationMatrix[2][2], affineMatrix[2][3]],
-            [0, 0, 0, 1]
-        ]
-        return returnAffineMatrix
-    case "z":
-        let returnAffineMatrix = [
-            [rotationMatrix[0][0], rotationMatrix[0][1], rotationMatrix[0][2], affineMatrix[0][3]],
-            [rotationMatrix[1][0], rotationMatrix[1][1], rotationMatrix[1][2], affineMatrix[1][3]],
-            [rotationMatrix[2][0], rotationMatrix[2][1], rotationMatrix[2][2], affineMatrix[2][3]],
-            [0, 0, 0, 1]
-        ]
-        return returnAffineMatrix
-    default:
-        return []
-    }
+    return [
+        [rotationMatrix[0][0], rotationMatrix[0][1], rotationMatrix[0][2], affineMatrix[0][3]],
+        [rotationMatrix[1][0], rotationMatrix[1][1], rotationMatrix[1][2], affineMatrix[1][3]],
+        [rotationMatrix[2][0], rotationMatrix[2][1], rotationMatrix[2][2], affineMatrix[2][3]],
+        [0, 0, 0, 1]
+    ]
 }
 
 func affineMatrixToAngle(_ matrix: [[Double]]) -> (Double, Double, Double) {
@@ -319,39 +249,8 @@ func affineMatrixToAngle(_ matrix: [[Double]]) -> (Double, Double, Double) {
 }
 
 func shiftRotateAffineMatrix(_ A: [[[Double]]], _ B: [[[Double]]], _ affineMatrix: [[Double]]) -> [[Double]] {
-    // Bの位置を取得
-    let B_pos = [B[0][0][3], B[0][1][3], B[0][2][3]]
-    
-    let (x,y,z) = affineMatrixToAngle(B[0])
-    
-    // B基準の単位ベクトル群（+X, +Y, +Z 方向）
-    let B_vectors: [[Double]] = [
-        B_pos,
-        [B_pos[0] + cos(x), B_pos[1] + cos(y), B_pos[2] + cos(z)],
-        [B_pos[0] + cos(z), B_pos[1] + cos(x), B_pos[2] + cos(y)],
-        [B_pos[0] + cos(y), B_pos[1] + cos(z), B_pos[2] + cos(x)]
-    ]
-    
-    // affineMatrixでB_vectorsをA空間に変換
-    let transformedVectors = B_vectors.map { matmul4x4_4x1(affineMatrix, $0) }
-    
-    // シフト量（最初の点の差）
-    let shift = zip(transformedVectors[0], B_vectors[0]).map { $0 - $1 }
-    
-    // B側ベクトルを原点相対にシフト
-    let shifted_B_vectors = B_vectors.map { zip($0, shift).map(-) }
-    let B_origin = shifted_B_vectors[0]
-    let B_relative = shifted_B_vectors.map { zip($0, B_origin).map(-) }
-    
-    // A側も同様にシフト
-    let shifted_transformed = transformedVectors.map { zip($0, shift).map(-) }
-    let A_origin = shifted_transformed[0]
-    let A_relative = shifted_transformed.map { zip($0, A_origin).map(-) }
-    
-    // 回転補正（Y→Z→Xの順）
-    let yMatrix = rotation(axis: "y", B_relative, A_relative, affineMatrix)
-    
-    return yMatrix
+    var tmpAffineMatrix = rotation(A[0], B[0], affineMatrix)
+    return tmpAffineMatrix
 }
 
 
@@ -371,12 +270,10 @@ func shiftRotateAffineMatrix(_ A: [[[Double]]], _ B: [[[Double]]], _ affineMatri
  calcAffineMatrix(A, B)
  */
 func calcAffineMatrix(_ A: [[[Double]]], _ B: [[[Double]]]) -> [[Double]] {
-    print("A")
-    print(A)
-    print("B")
-    print(B)
+    let n = A.count
+
     var P:[[Double]] = []
-    for i in (0..<3) {
+    for i in (0..<n) {
         var rowP:[Double] = []
         for j in (0..<3) {
             rowP.append(A[i][j][3])
@@ -384,10 +281,12 @@ func calcAffineMatrix(_ A: [[[Double]]], _ B: [[[Double]]]) -> [[Double]] {
         rowP.append(1.0)
         P.append(rowP)
     }
-    P.append([0, 0, 0, 0])
+    if P.count == 3 {
+        P.append([0, 0, 0, 0])
+    }
     
     var Q:[[Double]] = []
-    for i in (0..<3) {
+    for i in (0..<n) {
         var rowQ:[Double] = []
         for j in (0..<3) {
             rowQ.append(B[i][j][3])
@@ -395,7 +294,9 @@ func calcAffineMatrix(_ A: [[[Double]]], _ B: [[[Double]]]) -> [[Double]] {
         rowQ.append(0.0)
         Q.append(rowQ)
     }
-    Q.append([0, 0, 0, 0])
+    if Q.count == 3 {
+        Q.append([0, 0, 0, 0])
+    }
     
     let eqSolveMatrix:[[Double]] = matrixMul4x4(eqSolve(matrixMul4x4(P.transpose4x4, P), P.transpose4x4), Q)
     var affineMatrix:[[Double]] = eqSolveMatrix.transpose4x4

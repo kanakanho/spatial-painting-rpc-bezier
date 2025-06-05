@@ -196,9 +196,6 @@ struct ImmersiveView: View {
         }
         .onChange(of: appModel.model.latestRightIndexFingerCoordinates) {
             if appModel.rpcModel.coordinateTransforms.requestTransform {
-                print("change: appModel.model.latestRightIndexFingerCoordinates"
-                )
-                print(appModel.model.latestRightIndexFingerCoordinates)
                 latestRightIndexFingerCoordinates = appModel.model.latestRightIndexFingerCoordinates
             }
         }
@@ -225,6 +222,7 @@ struct ImmersiveView: View {
                             await dismissImmersiveSpace()
                             openWindow(id: "error")
                         }
+                        appModel.model.initBall(transform: latestRightIndexFingerCoordinates)
                     }
                 }
             }
