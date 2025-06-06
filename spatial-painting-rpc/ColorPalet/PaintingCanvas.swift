@@ -25,6 +25,9 @@ class PaintingCanvas {
     /// The distance for the box that extends in the negative direction.
     let small: Float = 1E-2
     
+    var currentPosition: SIMD3<Float> = .zero
+    var isFirstStroke = true
+    
     // Sets up the painting canvas with six collision boxes that stack on each other.
     init() {
         root.addChild(addBox(size: [big, big, small], position: [0, 0, -0.5 * big]))
@@ -58,6 +61,21 @@ class PaintingCanvas {
     
     /// Generate a point when the user uses the drag gesture.
     func addPoint(_ position: SIMD3<Float>) {
+        if isFirstStroke {
+            isFirstStroke = false
+            return
+        }
+        
+        /// currentPosition との距離が一定以上離れている場合は早期リターンする
+        let distance = length(position - currentPosition)
+        currentPosition = position
+        print("distance: \(distance)")
+        if distance > 0.1 {
+            print("distance is too far, return")
+            currentStroke = nil
+            return
+        }
+        
         /// The maximum distance between two points before requiring a new point.
         let threshold: Float = 1E-9
         
@@ -91,6 +109,8 @@ class PaintingCanvas {
             
             // Clear the current stroke.
             currentStroke = nil
+            isFirstStroke = true
         }
     }
 }
+
