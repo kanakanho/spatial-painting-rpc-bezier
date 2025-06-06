@@ -53,6 +53,19 @@ class ViewModel {
         for entity in fingerEntities.values {
             contentEntity.addChild(entity)
         }
+        
+        // 位置合わせする座標を教えてくれる球体の追加
+        let indexFingerTipGuideBall = ModelEntity(
+            mesh: .init(shape: .generateBox(width: 0.004, height: 0.1, depth: 0.004)),
+            materials: [SimpleMaterial(color: .green, isMetallic: true)],
+            collisionShape: .generateSphere(radius: 0.005),
+            mass: 0.0
+        )
+        indexFingerTipGuideBall.name = "indexFingerTipGuideBall"
+        indexFingerTipGuideBall.components.set(InputTargetComponent(allowedInputTypes: .all))
+        indexFingerTipGuideBall.isEnabled = false
+        contentEntity.addChild(indexFingerTipGuideBall)
+        
         return contentEntity
     }
     
@@ -68,7 +81,7 @@ class ViewModel {
             entity.removeFromParent()
         }
     }
-
+    
     // 指先の球の色を変更 added by nagao 2025/3/11
     func fingerSignal(hand: HandAnchor.Chirality, flag: Bool) {
         if flag {
@@ -308,5 +321,33 @@ class ViewModel {
     
     func initColorPaletNodel(colorPaletModel: ColorPaletModel) {
         self.colorPaletModel = colorPaletModel
+    }
+    
+    enum enableIndexFingerTipGuideBallPosition {
+        case left
+        case right
+        case top
+    }
+    
+    func enableIndexFingerTipGuideBall(position: SIMD3<Float>?) {
+        guard let position = position else {
+            print("Position is nil")
+            return
+        }
+        
+        guard let indexFingerTipGuideBall = contentEntity.findEntity(named: "indexFingerTipGuideBall") else {
+            print("indexFingerTipGuideBall not found")
+            return
+        }
+        indexFingerTipGuideBall.setPosition(position, relativeTo: nil)
+        indexFingerTipGuideBall.isEnabled = true
+    }
+    
+    func disableIndexFingerTipGuideBall() {
+        guard let indexFingerTipGuideBall = contentEntity.findEntity(named: "indexFingerTipGuideBall") else {
+            print("indexFingerTipGuideBall not found")
+            return
+        }
+        indexFingerTipGuideBall.isEnabled = false
     }
 }

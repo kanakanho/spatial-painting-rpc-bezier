@@ -198,49 +198,6 @@ func matmul4x4_4x1(_ A: [[Double]], _ B: [Double]) -> [Double] {
     return result
 }
 
-func rotation(_ myAffineMatrix: [[Double]] ,_ otherAffineMatrix: [[Double]], _ affineMatrix: [[Double]]) -> [[Double]] {
-    let myRotationX = atan2(myAffineMatrix[2][1], myAffineMatrix[2][2])
-    let myRotationY = atan2(-myAffineMatrix[2][0], sqrt(pow(myAffineMatrix[2][1], 2) + pow(myAffineMatrix[2][2], 2)))
-    let myRotationZ = atan2(myAffineMatrix[1][0], myAffineMatrix[0][0])
-    
-    let otherRotationX = atan2(otherAffineMatrix[2][1], otherAffineMatrix[2][2])
-    let otherRotationY = atan2(-otherAffineMatrix[2][0], sqrt(pow(otherAffineMatrix[2][1], 2) + pow(otherAffineMatrix[2][2], 2)))
-    let otherRotationZ = atan2(otherAffineMatrix[1][0], otherAffineMatrix[0][0])
-    
-    let theta_x = myRotationX - otherRotationX
-    let theta_y = myRotationY - otherRotationY
-    let theta_z = myRotationZ - otherRotationZ
-    
-    let theta_x_rotation = [
-        [1, 0, 0, 0],
-        [0, cos(theta_x), -sin(theta_x), 0],
-        [0, sin(theta_x), cos(theta_x), 0],
-        [0, 0, 0, 1]
-    ]
-    let theta_y_rotation = [
-        [cos(theta_y), 0, sin(theta_y), 0],
-        [0, 1, 0, 0],
-        [-sin(theta_y), 0, cos(theta_y), 0],
-        [0, 0, 0, 1]
-    ]
-    let theta_z_rotation = [
-        [cos(theta_z), -sin(theta_z), 0, 0],
-        [sin(theta_z), cos(theta_z), 0, 0],
-        [0, 0, 1, 0],
-        [0, 0, 0, 1]
-    ]
-    
-    
-    let rotationMatrix = matmul(matmul(theta_x_rotation, theta_y_rotation), theta_z_rotation)
-    
-    return [
-        [rotationMatrix[0][0], rotationMatrix[0][1], rotationMatrix[0][2], affineMatrix[0][3]],
-        [rotationMatrix[1][0], rotationMatrix[1][1], rotationMatrix[1][2], affineMatrix[1][3]],
-        [rotationMatrix[2][0], rotationMatrix[2][1], rotationMatrix[2][2], affineMatrix[2][3]],
-        [0, 0, 0, 1]
-    ]
-}
-
 func affineMatrixToAngle(_ matrix: [[Double]]) -> (Double, Double, Double) {
     let x = atan2(matrix[2][1], matrix[2][2])
     let y = atan2(-matrix[2][0], sqrt(pow(matrix[2][1], 2) + pow(matrix[2][2], 2)))
@@ -248,8 +205,116 @@ func affineMatrixToAngle(_ matrix: [[Double]]) -> (Double, Double, Double) {
     return (x, y, z)
 }
 
+func calcRotation(_ A: [[[Double]]], _ B: [[[Double]]], _ affineMatrix: [[Double]]) -> [[Double]] {
+    // A[1],A[2],A[3] の位置 から A[0]の位置を引いた情報を集める
+    // let shiftA0: [Double] = [
+    //     A[0][0][3] - A[0][0][3],
+    //     A[0][1][3] - A[0][1][3],
+    //     A[0][2][3] - A[0][2][3]
+    // ]
+    // let shiftA1: [Double] = [
+    //     A[1][0][3] - A[0][0][3],
+    //     A[1][1][3] - A[0][1][3],
+    //     A[1][2][3] - A[0][2][3]
+    // ]
+    let shiftA2: [Double] = [
+        A[2][0][3] - A[0][0][3],
+        A[2][1][3] - A[0][1][3],
+        A[2][2][3] - A[0][2][3]
+    ]
+    let shiftA3: [Double] = [
+        A[3][0][3] - A[0][0][3],
+        A[3][1][3] - A[0][1][3],
+        A[3][2][3] - A[0][2][3]
+    ]
+    
+    // let shiftB0: [Double] = [
+    //     B[0][0][3] - B[0][0][3],
+    //     B[0][1][3] - B[0][1][3],
+    //     B[0][2][3] - B[0][2][3]
+    // ]
+    // let shiftB1: [Double] = [
+    //     B[1][0][3] - B[0][0][3],
+    //     B[1][1][3] - B[0][1][3],
+    //     B[1][2][3] - B[0][2][3]
+    // ]
+    let shiftB2: [Double] = [
+        B[2][0][3] - B[0][0][3],
+        B[2][1][3] - B[0][1][3],
+        B[2][2][3] - B[0][2][3]
+    ]
+    // let shiftB3: [Double] = [
+    //     B[3][0][3] - B[0][0][3],
+    //     B[3][1][3] - B[0][1][3],
+    //     B[3][2][3] - B[0][2][3]
+    // ]
+    
+    // y軸の補正にx軸の三角比を利用する
+    let ySin = shiftB2[2] * -1
+    let yCos = shiftB2[0] * -1
+
+    print("ySin: \(ySin), yCos: \(yCos)")
+    let yasin = asin(ySin)
+    let yasindegree = yasin * 180 / .pi
+    print("yasin: \(yasin), yasindegree: \(yasindegree)")
+
+    // x軸の補正
+    let xSin: Double = shiftA2[1] / shiftA2[0]
+    var xCos: Double
+    // A 側の y軸が x軸基準の方が高い場合は cosはプラスになる
+    if A[0][1][3] < A[2][1][3] {
+        xCos = sqrt(1 - pow(xSin, 2))
+    } else {
+        xCos = -sqrt(1 - pow(xSin, 2))
+    }
+
+    print("xSin: \(xSin), xCos: \(xCos)")
+    let xasin = asin(xSin)
+    let xasindegree = xasin * 180 / .pi
+    print("xasin: \(xasin), xasindegree: \(xasindegree)")
+
+    let zSin: Double = shiftA3[1] / shiftA3[2]
+    var zCos: Double
+    // A 側の x軸が z軸基準の方が高い場合は cosはプラスになる
+    if A[0][0][3] < A[3][0][3] {
+        zCos = sqrt(1 - pow(zSin, 2))
+    } else {
+        zCos = -sqrt(1 - pow(zSin, 2))
+    }
+
+    print("zSin: \(zSin), zCos: \(zCos)")
+    let zasin = asin(zSin)
+    let zasindegree = zasin * 180 / .pi
+    print("zasin: \(zasin), zasindegree: \(zasindegree)")
+    
+    // 回転行列を計算
+    let rotationMatrixX: [[Double]] = [
+        [1, 0, 0, 0],
+        [0, xCos, xSin, 0],
+        [0, -xSin, xCos, 0],
+        [0, 0, 0, 1]
+    ]
+    let rotationMatrixY: [[Double]] = [
+        [yCos, 0, -ySin, 0],
+        [0, 1, 0, 0],
+        [ySin, 0, yCos, 0],
+        [0, 0, 0, 1]
+    ]
+    let rotationMatrixZ: [[Double]] = [
+        [zCos, zSin, 0, 0],
+        [-zSin, zCos, 0, 0],
+        [0, 0, 1, 0],
+        [0, 0, 0, 1]
+    ]
+
+    // 回転行列を合成
+    let rotationMatrix = matrixMul4x4(matrixMul4x4(matrixMul4x4(rotationMatrixX, rotationMatrixY), rotationMatrixZ), affineMatrix)
+    
+    return rotationMatrix
+}
+
 func shiftRotateAffineMatrix(_ A: [[[Double]]], _ B: [[[Double]]], _ affineMatrix: [[Double]]) -> [[Double]] {
-    var tmpAffineMatrix = rotation(A[0], B[0], affineMatrix)
+    let tmpAffineMatrix:[[Double]] = calcRotation(A, B, affineMatrix)
     return tmpAffineMatrix
 }
 

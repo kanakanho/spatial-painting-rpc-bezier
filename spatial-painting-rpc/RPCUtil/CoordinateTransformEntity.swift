@@ -173,6 +173,27 @@ class CoordinateTransforms: ObservableObject {
         }
     }
     
+    func getNextIndexFingerTipPosition() -> SIMD3<Float>? {
+        var firstRightFingerMatrix:SIMD3<Float> = .init()
+        if myPeerId > otherPeerId {
+            firstRightFingerMatrix = coordinateTransformEntity.A[0].tosimd_float4x4().position
+        } else {
+            return nil
+        }
+        
+        if matrixCount == 1 {
+            firstRightFingerMatrix = firstRightFingerMatrix + SIMD3<Float>(0,1,0)
+        } else if matrixCount == 2 {
+            firstRightFingerMatrix = firstRightFingerMatrix + SIMD3<Float>(1,0,0)
+        } else if matrixCount == 3 {
+            firstRightFingerMatrix = firstRightFingerMatrix + SIMD3<Float>(0,0,1)
+        }
+        
+        print("firstRightFingerMatrix: \(firstRightFingerMatrix)")
+        
+        return firstRightFingerMatrix
+    }
+    
     func initBallTransform() -> (RPCResult, simd_float4x4) {
         if affineMatrixs.isEmpty {
             return (RPCResult("計算し終わったアフィン行列が空です"), .init())
