@@ -227,9 +227,9 @@ struct ImmersiveView: View {
                 }
             }
         }
-        .onChange(of: appModel.rpcModel.coordinateTransforms.matrixCount) {
-            appModel.model.enableIndexFingerTipGuideBall(position: appModel.rpcModel.coordinateTransforms.getNextIndexFingerTipPosition())
-        }
+//        .onChange(of: appModel.rpcModel.coordinateTransforms.matrixCount) {
+//            appModel.model.enableIndexFingerTipGuideBall(position: appModel.rpcModel.coordinateTransforms.getNextIndexFingerTipPosition())
+//        }
     }
 }
 

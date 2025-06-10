@@ -8,12 +8,11 @@
 import MultipeerConnectivity
 
 /// 各端末の接続状況を管理するラッパー
-@Observable
-class MCPeerIDUUIDWrapper {
+class MCPeerIDUUIDWrapper: ObservableObject {
     /// 自身の id
-    var mine = MCPeerID(displayName: ProcessInfo.processInfo.hostName)
+    @Published var mine = MCPeerID(displayName: UUID().uuidString)
     /// 通信可能な id
-    var standby: [MCPeerID] = []
+    @Published var standby: [MCPeerID] = []
     
     func remove(mcPeerID: MCPeerID) {
         standby.removeAll { $0 == mcPeerID }

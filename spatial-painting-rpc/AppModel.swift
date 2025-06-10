@@ -20,9 +20,9 @@ class AppModel: ObservableObject {
     
     var model = ViewModel()
     
-    @Published var sendExchangeDataWrapper = ExchangeDataWrapper()
-    @Published var receiveExchangeDataWrapper = ExchangeDataWrapper()
-    @Published var mcPeerIDUUIDWrapper = MCPeerIDUUIDWrapper()
+    @ObservedObject var sendExchangeDataWrapper = ExchangeDataWrapper()
+    @ObservedObject var receiveExchangeDataWrapper = ExchangeDataWrapper()
+    @ObservedObject var mcPeerIDUUIDWrapper = MCPeerIDUUIDWrapper()
     @ObservedObject var rpcModel: RPCModel
     var peerManager: PeerManager
     
