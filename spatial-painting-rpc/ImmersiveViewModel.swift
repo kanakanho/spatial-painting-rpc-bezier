@@ -56,9 +56,9 @@ class ViewModel {
         
         // 位置合わせする座標を教えてくれる球体の追加
         let indexFingerTipGuideBall = ModelEntity(
-            mesh: .init(shape: .generateBox(width: 0.004, height: 0.1, depth: 0.004)),
+            mesh: .generateSphere(radius: 0.02),
             materials: [SimpleMaterial(color: .green, isMetallic: true)],
-            collisionShape: .generateSphere(radius: 0.005),
+            collisionShape: .generateSphere(radius: 0.03),
             mass: 0.0
         )
         indexFingerTipGuideBall.name = "indexFingerTipGuideBall"
@@ -264,7 +264,7 @@ class ViewModel {
         }
     }
     
-    func initBall(transform: simd_float4x4) {
+    func initBall(transform: simd_float4x4, ballColor: SimpleMaterial.Color) {
         let ball = ModelEntity(
             mesh: .generateSphere(radius: 0.02),
             materials: [SimpleMaterial(color: .cyan, isMetallic: true)],
@@ -329,12 +329,7 @@ class ViewModel {
         case top
     }
     
-    func enableIndexFingerTipGuideBall(position: SIMD3<Float>?) {
-        guard let position = position else {
-            print("Position is nil")
-            return
-        }
-        
+    func enableIndexFingerTipGuideBall(position: SIMD3<Float>) {
         guard let indexFingerTipGuideBall = contentEntity.findEntity(named: "indexFingerTipGuideBall") else {
             print("indexFingerTipGuideBall not found")
             return

@@ -46,6 +46,13 @@ extension simd_float4 {
 }
 
 extension SIMD4 {
+    init(_ float3: SIMD3<Scalar>) {
+        self.init()
+        x = float3.x
+        y = float3.y
+        z = float3.z
+    }
+    
     var xyz: SIMD3<Scalar> {
         self[SIMD3(0, 1, 2)]
     }
@@ -61,6 +68,15 @@ extension simd_float4x4 {
 extension simd_float4x4 {
     var position: SIMD3<Float> {
         self.columns.3.xyz
+    }
+    
+    init(pos: SIMD3<Float>) {
+        self.init([
+            SIMD4<Float>(1, 0, 0, 0),
+            SIMD4<Float>(0, 1, 0, 0),
+            SIMD4<Float>(0, 0, 1, 0),
+            SIMD4<Float>(pos.x, pos.y, pos.z, 1)
+        ])
     }
     
     init?(floatListStr: [String]) {

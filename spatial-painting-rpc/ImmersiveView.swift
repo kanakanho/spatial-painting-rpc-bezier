@@ -192,7 +192,7 @@ struct ImmersiveView: View {
                 print(rpcResult.errorMessage)
             }
             
-            appModel.model.initBall(transform: transform)
+            appModel.model.initBall(transform: transform, ballColor: .orange)
         }
         .onChange(of: appModel.model.latestRightIndexFingerCoordinates) {
             if appModel.rpcModel.coordinateTransforms.requestTransform {
@@ -216,20 +216,29 @@ struct ImmersiveView: View {
                                         matrix: latestRightIndexFingerCoordinates.floatList
                                     )
                                 )
-                            )
+                            ),
+                            mcPeerId: appModel.rpcModel.coordinateTransforms.otherPeerId
                         )
                         if !rpcResult.success {
                             await dismissImmersiveSpace()
                             openWindow(id: "error")
                         }
-                        appModel.model.initBall(transform: latestRightIndexFingerCoordinates)
+                        appModel.model.initBall(transform: latestRightIndexFingerCoordinates, ballColor: .cyan)
                     }
                 }
             }
         }
-//        .onChange(of: appModel.rpcModel.coordinateTransforms.matrixCount) {
-//            appModel.model.enableIndexFingerTipGuideBall(position: appModel.rpcModel.coordinateTransforms.getNextIndexFingerTipPosition())
-//        }
+        .onChange(of: appModel.rpcModel.coordinateTransforms.matrixCount) {
+            if appModel.rpcModel.coordinateTransforms.matrixCount == 0 {
+                return
+            }
+            
+            guard let nextPos = appModel.rpcModel.coordinateTransforms.getNextIndexFingerTipPosition() else {
+                print("No next index finger tip position available.")
+                return
+            }
+            appModel.model.enableIndexFingerTipGuideBall(position: nextPos)
+        }
     }
 }
 

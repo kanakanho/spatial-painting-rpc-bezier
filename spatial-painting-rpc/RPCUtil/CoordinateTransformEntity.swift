@@ -175,18 +175,19 @@ class CoordinateTransforms: ObservableObject {
     
     func getNextIndexFingerTipPosition() -> SIMD3<Float>? {
         var firstRightFingerMatrix:SIMD3<Float> = .init()
-        if myPeerId > otherPeerId {
-            firstRightFingerMatrix = coordinateTransformEntity.A[0].tosimd_float4x4().position
+        if myPeerId < otherPeerId {
+            firstRightFingerMatrix = coordinateTransformEntity.B[0].tosimd_float4x4().position
         } else {
+            print("is not a host")
             return nil
         }
         
         if matrixCount == 1 {
-            firstRightFingerMatrix = firstRightFingerMatrix + SIMD3<Float>(0,1,0)
+            firstRightFingerMatrix = firstRightFingerMatrix + SIMD3<Float>(0,0.3,0)
         } else if matrixCount == 2 {
-            firstRightFingerMatrix = firstRightFingerMatrix + SIMD3<Float>(1,0,0)
+            firstRightFingerMatrix = firstRightFingerMatrix + SIMD3<Float>(0.3,0,0)
         } else if matrixCount == 3 {
-            firstRightFingerMatrix = firstRightFingerMatrix + SIMD3<Float>(0,0,1)
+            firstRightFingerMatrix = firstRightFingerMatrix + SIMD3<Float>(0,0,0.3)
         }
         
         print("firstRightFingerMatrix: \(firstRightFingerMatrix)")
@@ -194,6 +195,11 @@ class CoordinateTransforms: ObservableObject {
         return firstRightFingerMatrix
     }
     
+    /// 初期化地点のボールを描画するための座標を取得する関数
+    /// - Returns:
+    ///     - 失敗した場合に理由を与える
+    ///     - 座標
+    ///     - A側かどうか
     func initBallTransform() -> (RPCResult, simd_float4x4) {
         if affineMatrixs.isEmpty {
             return (RPCResult("計算し終わったアフィン行列が空です"), .init())
@@ -209,12 +215,14 @@ class CoordinateTransforms: ObservableObject {
             return(RPCResult("座標変換行列が取得できません"), .init())
         }
         
-        var fristRightFingerMatrix: simd_float4x4 = .init()
+        var fristRightFingerPos: SIMD3<Float> = .init()
         if myPeerId > otherPeerId {
-            fristRightFingerMatrix = coordinateTransformEntity.A[0].tosimd_float4x4()
+            fristRightFingerPos = coordinateTransformEntity.A[0].tosimd_float4x4().position
         } else {
-            fristRightFingerMatrix = coordinateTransformEntity.B[0].tosimd_float4x4()
+            fristRightFingerPos = coordinateTransformEntity.B[0].tosimd_float4x4().position
         }
+        
+        let fristRightFingerMatrix = simd_float4x4(pos: fristRightFingerPos)
         
         return (
             RPCResult(),

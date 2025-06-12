@@ -135,6 +135,9 @@ class PeerManager: NSObject {
 extension PeerManager: MCSessionDelegate {
     func session(_ session: MCSession, peer peerID: MCPeerID, didChange state: MCSessionState) {
         print("Peer \(peerID.displayName) changed state to \(state)")
+        if state == .notConnected {
+            mcPeerIDUUIDWrapper.remove(mcPeerID: peerID)
+        }
     }
     
     func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
