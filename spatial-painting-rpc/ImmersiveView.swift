@@ -186,13 +186,8 @@ struct ImmersiveView: View {
                 appModel.model.isCanvasEnabled = true
             }
             
-            let (rpcResult, transform) = appModel.rpcModel.coordinateTransforms.initBallTransform()
-            
-            if !rpcResult.success {
-                print(rpcResult.errorMessage)
-            }
-            
-            appModel.model.initBall(transform: transform, ballColor: .orange)
+            appModel.model.resetInitBall()
+            appModel.model.disableIndexFingerTipGuideBall()
         }
         .onChange(of: appModel.model.latestRightIndexFingerCoordinates) {
             if appModel.rpcModel.coordinateTransforms.requestTransform {

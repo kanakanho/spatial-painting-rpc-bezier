@@ -120,21 +120,18 @@ class PeerManager: NSObject {
             }
         }
     }
-    
-    func addSendMessagePeer(uuid: UUID, peerIDHash: Int) {
-        for peer in session.connectedPeers {
-            if peer.hash == peerIDHash {
-                mcPeerIDUUIDWrapper.standby.append(peer)
-                return
-            }
-        }
-        print("Error Not found peerID")
-    }
 }
 
 extension PeerManager: MCSessionDelegate {
     func session(_ session: MCSession, peer peerID: MCPeerID, didChange state: MCSessionState) {
         print("Peer \(peerID.displayName) changed state to \(state)")
+        if state == .connected {
+            // 同じdisplayNameを持つMCPeerIDがいた場合、削除する
+            if mcPeerIDUUIDWrapper.standby.contains(where: { $0.displayName == peerID.displayName }) {
+                mcPeerIDUUIDWrapper.standby.removeAll(where: { $0.displayName == peerID.displayName })
+            }
+            mcPeerIDUUIDWrapper.standby.append(peerID)
+        }
         if state == .notConnected {
             mcPeerIDUUIDWrapper.remove(mcPeerID: peerID)
         }
@@ -166,11 +163,9 @@ extension PeerManager: MCNearbyServiceBrowserDelegate {
     func browser(_ browser: MCNearbyServiceBrowser, foundPeer peerID: MCPeerID, withDiscoveryInfo info: [String : String]?) {
         print("Found peer: \(peerID.displayName)")
         browser.invitePeer(peerID, to: session, withContext: nil, timeout: 10)
-        mcPeerIDUUIDWrapper.standby.append(peerID)
     }
     
     func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {
         print("Lost peer: \(peerID.displayName)")
-        mcPeerIDUUIDWrapper.remove(mcPeerID: peerID)
     }
 }

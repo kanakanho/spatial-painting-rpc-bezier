@@ -22,6 +22,7 @@ class ViewModel {
     
     private var meshEntities = [UUID: ModelEntity]()
     var contentEntity = Entity()
+    var initBallEntity = Entity()
     var latestHandTracking: HandsUpdates = .init(left: nil, right: nil)
     var leftHandEntity = Entity()
     var rightHandEntity = Entity()
@@ -53,6 +54,8 @@ class ViewModel {
         for entity in fingerEntities.values {
             contentEntity.addChild(entity)
         }
+        
+        contentEntity.addChild(initBallEntity)
         
         // 位置合わせする座標を教えてくれる球体の追加
         let indexFingerTipGuideBall = ModelEntity(
@@ -264,6 +267,12 @@ class ViewModel {
         }
     }
     
+    func resetInitBall() {
+        initBallEntity.removeFromParent()
+        initBallEntity = Entity()
+        contentEntity.addChild(initBallEntity)
+    }
+    
     func initBall(transform: simd_float4x4, ballColor: SimpleMaterial.Color) {
         let ball = ModelEntity(
             mesh: .generateSphere(radius: 0.02),
@@ -276,7 +285,7 @@ class ViewModel {
         ball.setOrientation(simd_quatf(transform), relativeTo: nil)
         ball.components.set(InputTargetComponent(allowedInputTypes: .all))
         
-        contentEntity.addChild(ball)
+        initBallEntity.addChild(ball)
         
         // zStrokeArrow
         let zStroke = ModelEntity(
@@ -290,7 +299,7 @@ class ViewModel {
         zStroke.setPosition(SIMD3<Float>(0, 0, 0.05), relativeTo: ball)
         zStroke.setOrientation(simd_quatf(transform), relativeTo: nil)
         zStroke.components.set(InputTargetComponent(allowedInputTypes: .all))
-        contentEntity.addChild(zStroke)
+        initBallEntity.addChild(zStroke)
         
         // yStrokeArrow
         let yStroke = ModelEntity(
@@ -303,7 +312,7 @@ class ViewModel {
         yStroke.setPosition(SIMD3<Float>(0, 0.05, 0), relativeTo: ball)
         yStroke.setOrientation(simd_quatf(transform), relativeTo: nil)
         yStroke.components.set(InputTargetComponent(allowedInputTypes: .all))
-        contentEntity.addChild(yStroke)
+        initBallEntity.addChild(yStroke)
         
         // xStrokeArrow
         let xStroke = ModelEntity(
@@ -316,7 +325,7 @@ class ViewModel {
         xStroke.setPosition(SIMD3<Float>(0.05, 0, 0), relativeTo: ball)
         xStroke.setOrientation(simd_quatf(transform), relativeTo: nil)
         xStroke.components.set(InputTargetComponent(allowedInputTypes: .all))
-        contentEntity.addChild(xStroke)
+        initBallEntity.addChild(xStroke)
     }
     
     func initColorPaletNodel(colorPaletModel: ColorPaletModel) {

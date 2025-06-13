@@ -18,16 +18,16 @@ enum SharedCoordinateState {
 struct ContentView: View {
     @EnvironmentObject private var appModel: AppModel
     @State private var sharedCoordinateState: SharedCoordinateState = .prepare
+    @Environment(\.scenePhase) var scenePhase
     
     var body: some View {
         VStack {
+            ToggleImmersiveSpaceButton()
+                .environmentObject(appModel)
             NavigationStack {
                 switch sharedCoordinateState {
                 case .prepare:
                     VStack {
-                        Spacer()
-                        ToggleImmersiveSpaceButton()
-                            .environmentObject(appModel)
                         Spacer()
                         Button("Start Sharing") {
                             appModel.peerManager.start()
@@ -46,7 +46,11 @@ struct ContentView: View {
             Spacer()
         }
         .padding()
-        
+        .onChange(of: scenePhase) {
+            if scenePhase == .background {
+                appModel.mcPeerIDUUIDWrapper.standby.removeAll()
+            }
+        }
     }
 }
 
