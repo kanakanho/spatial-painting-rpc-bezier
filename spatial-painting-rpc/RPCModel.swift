@@ -261,6 +261,9 @@ class RPCModel: ObservableObject {
             rpcResult = coordinateTransforms.setTransform(param: p)
         case let (.coordinateTransformEntity(.setState), .coordinateTransformEntity(.setState(p))):
             rpcResult = coordinateTransforms.setState(param: p)
+        case let (.coordinateTransformEntity(.setNewUserAffineMatrix), .coordinateTransformEntity(.setNewUserAffineMatrix(p))):
+            // 自身に対して追加操作を行わない
+            break
         case let (.paintingEntity(.addStrokePoint),.paintingEntity(.addStrokePoint(p))):
             // 自身に対して追加操作を行わない
             break
@@ -294,6 +297,8 @@ class RPCModel: ObservableObject {
             rpcResult = coordinateTransforms.setTransform(param: p)
         case let (.coordinateTransformEntity(.setState), .coordinateTransformEntity(.setState(p))):
             rpcResult = coordinateTransforms.setState(param: p)
+        case let (.coordinateTransformEntity(.setNewUserAffineMatrix), .coordinateTransformEntity(.setNewUserAffineMatrix(p))):
+            rpcResult = coordinateTransforms.setNewUserAffineMatrix(param: p)
         case let (.paintingEntity(.addStrokePoint),.paintingEntity(.addStrokePoint(p))):
             painting.addStrokePoint(param: p)
         case  (.paintingEntity(.finishStroke),.paintingEntity(.finishStroke(_))):

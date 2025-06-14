@@ -52,6 +52,44 @@ struct ConfirmView: View {
         
         rpcModel.coordinateTransforms.setAffineMatrix()
         
+        for tmpNewUserAffineMatrixs in rpcModel.coordinateTransforms.tmpNewUserAffineMatrixs {
+            // 新しいユーザに既存ユーザの座標系に変換するアフィン行列を与える
+            let newUserToAlreadyUserRpcResult = rpcModel.sendRequest(
+                RequestSchema(
+                    peerId: rpcModel.mcPeerIDUUIDWrapper.mine.hash,
+                    method: .setNewUserAffineMatrix,
+                    param: .setNewUserAffineMatrix(
+                        .init(
+                            newPeerId: tmpNewUserAffineMatrixs.newPeerId,
+                            affineMatrix: tmpNewUserAffineMatrixs.newUserToAlreadyUserAffineMatrix.floatList
+                        )
+                    )
+                ),
+                mcPeerId: tmpNewUserAffineMatrixs.newPeerId
+            )
+            if !newUserToAlreadyUserRpcResult.success {
+                errorMessage = newUserToAlreadyUserRpcResult.errorMessage
+            }
+            
+            // 既存ユーザに新しいユーザの座標系に変換するアフィン行列を与える
+            let alreadyUserTonewUserRpcResult = rpcModel.sendRequest(
+                RequestSchema(
+                    peerId: rpcModel.mcPeerIDUUIDWrapper.mine.hash,
+                    method: .setNewUserAffineMatrix,
+                    param: .setNewUserAffineMatrix(
+                        .init(
+                            newPeerId: tmpNewUserAffineMatrixs.alreadyPeerId,
+                            affineMatrix: tmpNewUserAffineMatrixs.alreadyUserToNewUserAffineMatrix.floatList
+                        )
+                    )
+                ),
+                mcPeerId: tmpNewUserAffineMatrixs.alreadyPeerId
+            )
+            if !alreadyUserTonewUserRpcResult.success {
+                errorMessage = newUserToAlreadyUserRpcResult.errorMessage
+            }
+        }
+        
         let setStateRPCResult = rpcModel.coordinateTransforms.setState(param: .init(state: .prepared))
         if !setStateRPCResult.success {
             errorMessage = setStateRPCResult.errorMessage

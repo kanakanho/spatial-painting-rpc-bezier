@@ -18,6 +18,13 @@ enum TransformationMatrixPreparationState: Codable {
     case prepared
 }
 
+struct tmpNewUserAffineMatrix {
+    let newPeerId: Int
+    let alreadyPeerId: Int
+    let newUserToAlreadyUserAffineMatrix: simd_float4x4
+    let alreadyUserToNewUserAffineMatrix: simd_float4x4
+}
+
 class CoordinateTransforms: ObservableObject {
     var coordinateTransformEntity: CoordinateTransformEntity = .init(state: .initial)
     /// 座標の交換を管理するフラグ
@@ -39,6 +46,9 @@ class CoordinateTransforms: ObservableObject {
     var otherPeerId: Int = 0
     /// 計算が完了したアフィン行列
     @Published var affineMatrixs: [Int: simd_float4x4] = [:]
+    
+    /// 新しく参加するユーザのアフィン行列の交換のためのリスト
+    var tmpNewUserAffineMatrixs: [tmpNewUserAffineMatrix] = []
     
     ///  初期化
     ///  座標交換の工程の1つ目
@@ -158,11 +168,46 @@ class CoordinateTransforms: ObservableObject {
         return RPCResult()
     }
     
-    func getAffineMatrixAtoB(peerId: Int) -> (simd_float4x4,Bool) {
-        if coordinateTransformEntity.affineMatrixAtoB == .init() {
-            return (.init(), false)
+    /// 新規ユーザーのアフィン行列を設定
+    /// - Parameter param: `SetNewUserAffineMatrix`
+    /// - Returns: `RPCResult`
+    func setNewUserAffineMatrix(param: SetNewUserAffineMatrix) -> RPCResult {
+        affineMatrixs[param.newPeerId] = param.affineMatrix.tosimd_float4x4()
+        return RPCResult()
+    }
+    
+    /// 新規ユーザーのアフィン行列を全ての端末に対して設定するための準備
+    /// - Parameter param: `PrepareBroadcastNewUserAffineMatrix`
+    /// - Returns: `RPCResult`
+    func prepareBroadcastNewUserAffineMatrix(param: SetNewUserAffineMatrix) -> RPCResult {
+        // tmpNewUserAffineMatrixsのクリア
+        tmpNewUserAffineMatrixs.removeAll()
+        
+        // 新しいユーザーのアフィン行列を全ての端末に対して設定
+        var newUserToMeAffineMatrix: simd_float4x4
+        if myPeerId > otherPeerId {
+            newUserToMeAffineMatrix = coordinateTransformEntity.affineMatrixAtoB
+        } else {
+            newUserToMeAffineMatrix = coordinateTransformEntity.affineMatrixBtoA
         }
-        return (coordinateTransformEntity.affineMatrixAtoB, true)
+        // 既存のユーザーのアフィン行列を取得
+        for (key, value) in affineMatrixs {
+            let alreadyUserToMeAffineMatrix = value
+            // 既存ユーザーto新規ユーザーのアフィン行列を計算
+            let alreadyUserToNewUserAffineMatrix = alreadyUserToMeAffineMatrix * newUserToMeAffineMatrix
+            // 新規ユーザーto既存ユーザーのアフィン行列を計算
+            let newUserToAlreadyUserAffineMatrix = inverseMatrix(alreadyUserToNewUserAffineMatrix.doubleList).tosimd_float4x4()
+            // tmpNewUserAffineMatrixs に追加
+            tmpNewUserAffineMatrixs.append(
+                tmpNewUserAffineMatrix(
+                    newPeerId: param.newPeerId,
+                    alreadyPeerId: key,
+                    newUserToAlreadyUserAffineMatrix: newUserToAlreadyUserAffineMatrix,
+                    alreadyUserToNewUserAffineMatrix: alreadyUserToNewUserAffineMatrix
+                )
+            )
+        }
+        return RPCResult()
     }
     
     func setAffineMatrix() {
@@ -285,6 +330,8 @@ struct CoordinateTransformEntity: RPCEntity {
         case setBTransform
         case clacAffineMatrix
         case setState
+        case setNewUserAffineMatrix
+        case broadcastNewUserAffineMatrix
     }
     
     enum Param: RPCEntityParam {
@@ -297,6 +344,8 @@ struct CoordinateTransformEntity: RPCEntity {
         case setBTransform(SetBTransformParam)
         case clacAffineMatrix(ClacAffineMatrixParam)
         case setState(SetStateParam)
+        case setNewUserAffineMatrix(SetNewUserAffineMatrix)
+        case prepareBroadcastNewUserAffineMatrix(PrepareBroadcastNewUserAffineMatrix)
         
         struct InitMyPeerParam: Codable {
             /// アクセス元の peerIdHash
@@ -347,6 +396,18 @@ struct CoordinateTransformEntity: RPCEntity {
             let state: TransformationMatrixPreparationState
         }
         
+        struct SetNewUserAffineMatrix: Codable {
+            /// 新規に参加したユーザの peerIdHash
+            let newPeerId: Int
+            /// 新規に参加したユーザの座標系への変換が可能なアフィン行列
+            let affineMatrix: [[Float]]
+        }
+        
+        struct PrepareBroadcastNewUserAffineMatrix: Codable {
+            /// 新規に参加したユーザの peerIdHash
+            let newPeerId: Int
+        }
+        
         func encode(to encoder: Encoder) throws {
             var container = encoder.container(keyedBy: CodingKeys.self)
             switch self {
@@ -368,6 +429,10 @@ struct CoordinateTransformEntity: RPCEntity {
                 try container.encode(param, forKey: .clacAffineMatrix)
             case .setState(let param):
                 try container.encode(param, forKey: .setState)
+            case .setNewUserAffineMatrix(let param):
+                try container.encode(param, forKey: .setNewUserAffineMatrix)
+            case .prepareBroadcastNewUserAffineMatrix(let param):
+                try container.encode(param, forKey: .prepareBroadcastNewUserAffineMatrix)
             }
         }
         
@@ -391,6 +456,10 @@ struct CoordinateTransformEntity: RPCEntity {
                 self = .clacAffineMatrix(param)
             } else if let param = try? container.decode(SetStateParam.self, forKey: .setState) {
                 self = .setState(param)
+            } else if let param = try? container.decode(SetNewUserAffineMatrix.self, forKey: .setNewUserAffineMatrix) {
+                self = .setNewUserAffineMatrix(param)
+            } else if let param = try? container.decode(PrepareBroadcastNewUserAffineMatrix.self, forKey: .prepareBroadcastNewUserAffineMatrix) {
+                self = .prepareBroadcastNewUserAffineMatrix(param)
             } else {
                 throw DecodingError.dataCorruptedError(forKey: CodingKeys.setATransform, in: container, debugDescription: "Invalid parameter type")
             }
@@ -406,6 +475,8 @@ struct CoordinateTransformEntity: RPCEntity {
             case setBTransform
             case clacAffineMatrix
             case setState
+            case setNewUserAffineMatrix
+            case prepareBroadcastNewUserAffineMatrix
         }
     }
 }
@@ -419,3 +490,5 @@ typealias SetATransformParam = CoordinateTransformEntity.Param.SetATransformPara
 typealias SetBTransformParam = CoordinateTransformEntity.Param.SetBTransformParam
 typealias ClacAffineMatrixParam = CoordinateTransformEntity.Param.ClacAffineMatrixParam
 typealias SetStateParam = CoordinateTransformEntity.Param.SetStateParam
+typealias SetNewUserAffineMatrix = CoordinateTransformEntity.Param.SetNewUserAffineMatrix
+typealias BroadcastNewUserAffineMatrix = CoordinateTransformEntity.Param.PrepareBroadcastNewUserAffineMatrix
