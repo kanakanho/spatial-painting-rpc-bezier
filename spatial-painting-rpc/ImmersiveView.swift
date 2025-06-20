@@ -67,7 +67,7 @@ struct ImmersiveView: View {
                                     RequestSchema(
                                         peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
                                         method: .removeStroke,
-                                        param: .removeStroke(.init())
+                                        param: .removeAllStroke(.init())
                                     )
                                 )
                             }
@@ -150,7 +150,8 @@ struct ImmersiveView: View {
                         return
                     }
                     if let pos = lastIndexPose {
-                        appModel.rpcModel.painting.paintingCanvas.addPoint(pos)
+                        let uuid = UUID()
+                        appModel.rpcModel.painting.paintingCanvas.addPoint(uuid: uuid, pos)
                         let matrix:[Double] = [pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(), 1]
                         for (id,affineMatrix) in appModel.rpcModel.coordinateTransforms.affineMatrixs {
                             let clientPos = matmul4x4_4x1(affineMatrix.doubleList, matrix)
@@ -159,8 +160,10 @@ struct ImmersiveView: View {
                                     peerId: appModel.rpcModel.mcPeerIDUUIDWrapper.mine.hash,
                                     method: .addStrokePoint,
                                     param: .addStrokePoint(.init(
+                                        uuid: uuid,
                                         point: .init(x: Float(clientPos[0]), y: Float(clientPos[1]), z: Float(clientPos[2]))
-                                    ))),
+                                    ))
+                                ),
                                 mcPeerId: id
                             )
                         }

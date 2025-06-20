@@ -7,10 +7,20 @@
 
 import SwiftUI
 import RealityKit
+import simd
+
+struct StrokeComponent: Component {
+    var uuid: UUID
+    
+    init(uuid: UUID) {
+        self.uuid = uuid
+    }
+}
 
 /// A structure to represent the stroke.
 class Stroke {
     var activeColor:SimpleMaterial.Color = SimpleMaterial.Color.white
+    let uuid: UUID
     
     func setActiveColor(color: SimpleMaterial.Color) {
         activeColor = color
@@ -27,6 +37,13 @@ class Stroke {
     
     /// The number of points in each ring of the mesh.
     let pointsPerRing = 8
+    
+    init(uuid: UUID) {
+        self.uuid = uuid
+        entity.components.set(StrokeComponent(uuid: uuid))
+        entity.components.set(InputTargetComponent())
+        entity.components.set(PhysicsBodyComponent(mode: .static))
+    }
     
     /// Update the mesh with the points of the stroke if it already exists,
     /// or create a new one with the given mesh data.

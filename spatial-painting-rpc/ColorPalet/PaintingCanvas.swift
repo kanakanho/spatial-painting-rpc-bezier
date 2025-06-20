@@ -60,7 +60,7 @@ class PaintingCanvas {
     }
     
     /// Generate a point when the user uses the drag gesture.
-    func addPoint(_ position: SIMD3<Float>) {
+    func addPoint(uuid: UUID, _ position: SIMD3<Float>) {
         if isFirstStroke {
             isFirstStroke = false
             return
@@ -69,7 +69,7 @@ class PaintingCanvas {
         /// currentPosition との距離が一定以上離れている場合は早期リターンする
         let distance = length(position - currentPosition)
         currentPosition = position
-        print("distance: \(distance)")
+//        print("distance: \(distance)")
         if distance > 0.1 {
             print("distance is too far, return")
             currentStroke = nil
@@ -81,7 +81,7 @@ class PaintingCanvas {
         
         // Start a new stroke if no stroke exists.
         if currentStroke == nil {
-            currentStroke = Stroke()
+            currentStroke = Stroke(uuid: uuid)
             currentStroke!.setActiveColor(color: activeColor)
             strokes.append(currentStroke!)
             

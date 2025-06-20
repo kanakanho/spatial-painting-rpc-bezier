@@ -215,8 +215,6 @@ class RPCModel: ObservableObject {
         
         var rpcResult = RPCResult()
         switch (request.method, request.param) {
-        case let (.coordinateTransformEntity(.requestTransform),.coordinateTransformEntity(.requestTransform(p))):
-            rpcResult = coordinateTransforms.requestTransform(param: p)
         case let (.coordinateTransformEntity(.setTransform),.coordinateTransformEntity(.setTransform(p))):
             rpcResult = coordinateTransforms.setTransform(param: p)
         case let (.coordinateTransformEntity(.setState), .coordinateTransformEntity(.setState(p))):
@@ -226,9 +224,11 @@ class RPCModel: ObservableObject {
         case let
             (.paintingEntity(.setStrokeColor),.paintingEntity(.setStrokeColor(p))):
                 painting.setStrokeColor(param: p)
+        case (.paintingEntity(.removeAllStroke),.paintingEntity(.removeAllStroke(_))):
+            painting.removeStrokeAll()
         case
-            (.paintingEntity(.removeStroke),.paintingEntity(.removeStroke(_))):
-                painting.removeStroke()
+            let (.paintingEntity(.removeStroke),.paintingEntity(.removeStroke(p))):
+            painting.removeStroke(param: p)
         default:
             return RPCResult("Invalid request")
         }
@@ -261,7 +261,7 @@ class RPCModel: ObservableObject {
             rpcResult = coordinateTransforms.setTransform(param: p)
         case let (.coordinateTransformEntity(.setState), .coordinateTransformEntity(.setState(p))):
             rpcResult = coordinateTransforms.setState(param: p)
-        case let (.paintingEntity(.addStrokePoint),.paintingEntity(.addStrokePoint(p))):
+        case (.paintingEntity(.addStrokePoint),.paintingEntity(.addStrokePoint(_))):
             // 自身に対して追加操作を行わない
             break
         case let
@@ -301,9 +301,11 @@ class RPCModel: ObservableObject {
         case let
             (.paintingEntity(.setStrokeColor),.paintingEntity(.setStrokeColor(p))):
                 painting.setStrokeColor(param: p)
-        case 
-            (.paintingEntity(.removeStroke),.paintingEntity(.removeStroke(_))):
-                painting.removeStroke()
+        case (.paintingEntity(.removeAllStroke),.paintingEntity(.removeAllStroke(_))):
+            painting.removeStrokeAll()
+        case
+            let (.paintingEntity(.removeStroke),.paintingEntity(.removeStroke(p))):
+            painting.removeStroke(param: p)
         default:
             return RPCResult("Invalid request")
         }
