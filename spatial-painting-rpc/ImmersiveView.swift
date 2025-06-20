@@ -146,14 +146,25 @@ struct ImmersiveView: View {
             appModel.model.showFingerTipSpheres()
         }
         .gesture(
-            TapGesture()
-                .onEnded({ _ in
+            DragGesture(minimumDistance: 0)
+                .targetedToAnyEntity()
+                .onChanged({ _ in
+//                    // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
+//                    if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
+//                        return
+//                    }
+                    let tmpnearPoints = appModel.rpcModel.painting.paintingCanvas.corisionStrokePoints.filter {
+                        return distance($0.value, lastIndexPose) < 0.02
+                    }.keys
+                    if !tmpnearPoints.isEmpty {
+                        print("nearPoints: \(tmpnearPoints.map { $0.uuidString })")
+                    }
                     if isClearMode {
                         let nearPoints = appModel.rpcModel.painting.paintingCanvas.corisionStrokePoints.filter {
-                            return distance($0.value, lastIndexPose) < 0.001
+                            return distance($0.value, lastIndexPose) < 0.02
                         }
                         for nearPoint in nearPoints {
-                            if let nearPointEntity = appModel.rpcModel.painting.paintingCanvas.root.findEntity(named: nearPoint.key.uuidString) {
+                            if appModel.rpcModel.painting.paintingCanvas.root.findEntity(named: nearPoint.key.uuidString) != nil {
                                 _ = appModel.rpcModel.sendRequest(
                                     RequestSchema(
                                         peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
@@ -163,17 +174,10 @@ struct ImmersiveView: View {
                                 )
                             }
                         }
+                        return
                     }
-                })
-        )
-        .gesture(
-            DragGesture(minimumDistance: 0)
-                .targetedToAnyEntity()
-                .onChanged({ _ in
-//                    // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
-//                    if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
-//                        return
-//                    }
+                    
+                    
                     appModel.rpcModel.painting.paintingCanvas.addPoint(lastIndexPose)
                     let matrix:[Double] = [lastIndexPose.x.toDouble(), lastIndexPose.y.toDouble(), lastIndexPose.z.toDouble(), 1]
                     for (id,affineMatrix) in appModel.rpcModel.coordinateTransforms.affineMatrixs {
@@ -194,6 +198,24 @@ struct ImmersiveView: View {
 //                    if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
 //                        return
 //                    }
+                    if isClearMode {
+                        let nearPoints = appModel.rpcModel.painting.paintingCanvas.corisionStrokePoints.filter {
+                            return distance($0.value, lastIndexPose) < 0.001
+                        }
+                        for nearPoint in nearPoints {
+                            if appModel.rpcModel.painting.paintingCanvas.root.findEntity(named: nearPoint.key.uuidString) != nil {
+                                _ = appModel.rpcModel.sendRequest(
+                                    RequestSchema(
+                                        peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
+                                        method: .removeStroke,
+                                        param: .removeStroke(.init(strokeId: nearPoint.key.uuidString))
+                                    )
+                                )
+                            }
+                        }
+                        return
+                    }
+                    
                     _ = appModel.rpcModel.sendRequest(
                         RequestSchema(
                             peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
