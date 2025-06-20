@@ -16,7 +16,8 @@ struct ImmersiveView: View {
     @Environment(\.openWindow) var openWindow
     
     @State var latestRightIndexFingerCoordinates: simd_float4x4 = .init()
-    @State var lastIndexPose: SIMD3<Float>?
+    @State var lastIndexPose: SIMD3<Float> = .zero
+    @State var isClearMode: Bool = false
     
     var body: some View {
         RealityView { content in
@@ -33,10 +34,10 @@ struct ImmersiveView: View {
                 
                 for fingerEntity in appModel.model.fingerEntities.values {
                     _ = content.subscribe(to: CollisionEvents.Began.self, on: fingerEntity) { collisionEvent in
-                        // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
-                        if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
-                            return
-                        }
+//                        // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
+//                        if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
+//                            return
+//                        }
                         
                         if appModel.rpcModel.painting.colorPaletModel.colorNames.contains(collisionEvent.entityB.name) {
                             appModel.model.changeFingerColor(entity: fingerEntity, colorName: collisionEvent.entityB.name)
@@ -46,10 +47,10 @@ struct ImmersiveView: View {
                     }
                     
                     _ = content.subscribe(to: CollisionEvents.Ended.self, on: fingerEntity) { collisionEvent in
-                        // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
-                        if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
-                            return
-                        }
+//                        // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
+//                        if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
+//                            return
+//                        }
                         
                         if appModel.rpcModel.painting.colorPaletModel.colorNames.contains(collisionEvent.entityB.name) {
                             _ = appModel.rpcModel.sendRequest(
@@ -62,12 +63,15 @@ struct ImmersiveView: View {
                                 )
                             )
                         } else if (collisionEvent.entityB.name == "clear") {
+                            isClearMode.toggle()
+                            print("Clear mode: \(isClearMode)")
                             if appModel.model.recordTime(isBegan: false) {
+                                isClearMode = false
                                 _ = appModel.rpcModel.sendRequest(
                                     RequestSchema(
                                         peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
-                                        method: .removeStroke,
-                                        param: .removeStroke(.init())
+                                        method: .removeAllStroke,
+                                        param: .removeAllStroke(.init())
                                     )
                                 )
                             }
@@ -142,36 +146,54 @@ struct ImmersiveView: View {
             appModel.model.showFingerTipSpheres()
         }
         .gesture(
-            DragGesture(minimumDistance: 0)
-                .targetedToAnyEntity()
-                .onChanged({ _ in
-                    // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
-                    if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
-                        return
-                    }
-                    if let pos = lastIndexPose {
-                        appModel.rpcModel.painting.paintingCanvas.addPoint(pos)
-                        let matrix:[Double] = [pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(), 1]
-                        for (id,affineMatrix) in appModel.rpcModel.coordinateTransforms.affineMatrixs {
-                            let clientPos = matmul4x4_4x1(affineMatrix.doubleList, matrix)
-                            _ = appModel.rpcModel.sendRequest(
-                                RequestSchema(
-                                    peerId: appModel.rpcModel.mcPeerIDUUIDWrapper.mine.hash,
-                                    method: .addStrokePoint,
-                                    param: .addStrokePoint(.init(
-                                        point: .init(x: Float(clientPos[0]), y: Float(clientPos[1]), z: Float(clientPos[2]))
-                                    ))),
-                                mcPeerId: id
-                            )
+            TapGesture()
+                .onEnded({ _ in
+                    if isClearMode {
+                        let nearPoints = appModel.rpcModel.painting.paintingCanvas.corisionStrokePoints.filter {
+                            return distance($0.value, lastIndexPose) < 0.001
+                        }
+                        for nearPoint in nearPoints {
+                            if let nearPointEntity = appModel.rpcModel.painting.paintingCanvas.root.findEntity(named: nearPoint.key.uuidString) {
+                                _ = appModel.rpcModel.sendRequest(
+                                    RequestSchema(
+                                        peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
+                                        method: .removeStroke,
+                                        param: .removeStroke(.init(strokeId: nearPoint.key.uuidString))
+                                    )
+                                )
+                            }
                         }
                     }
                 })
-                .onEnded({ _ in
-                    // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
-                    if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
-                        return
+        )
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .targetedToAnyEntity()
+                .onChanged({ _ in
+//                    // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
+//                    if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
+//                        return
+//                    }
+                    appModel.rpcModel.painting.paintingCanvas.addPoint(lastIndexPose)
+                    let matrix:[Double] = [lastIndexPose.x.toDouble(), lastIndexPose.y.toDouble(), lastIndexPose.z.toDouble(), 1]
+                    for (id,affineMatrix) in appModel.rpcModel.coordinateTransforms.affineMatrixs {
+                        let clientPos = matmul4x4_4x1(affineMatrix.doubleList, matrix)
+                        _ = appModel.rpcModel.sendRequest(
+                            RequestSchema(
+                                peerId: appModel.rpcModel.mcPeerIDUUIDWrapper.mine.hash,
+                                method: .addStrokePoint,
+                                param: .addStrokePoint(.init(
+                                    point: .init(x: Float(clientPos[0]), y: Float(clientPos[1]), z: Float(clientPos[2]))
+                                ))),
+                            mcPeerId: id
+                        )
                     }
-                    
+                })
+                .onEnded({ _ in
+//                    // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
+//                    if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
+//                        return
+//                    }
                     _ = appModel.rpcModel.sendRequest(
                         RequestSchema(
                             peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,

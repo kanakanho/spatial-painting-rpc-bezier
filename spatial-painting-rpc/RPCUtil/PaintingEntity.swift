@@ -28,11 +28,20 @@ class Painting:ObservableObject {
     }
     
     /// これまでに書いた全てのストロークを削除する
-    func removeStroke() {
+    func removeStrokeAll() {
         for stroke in paintingCanvas.strokes {
             stroke.entity.removeFromParent()
         }
         paintingCanvas.strokes.removeAll()
+    }
+    
+    /// 特定のストロークを削除する
+    func removeStroke(param: RemoveStrokeParam) {
+        guard let stroke = paintingCanvas.strokes.first(where: { $0.entity.name == param.strokeId }) else {
+            print("Stroke with id \(param.strokeId) not found.")
+            return
+        }
+        stroke.entity.removeFromParent()
     }
     
     /// ストロークを描く
@@ -50,6 +59,7 @@ class Painting:ObservableObject {
 struct PaintingEntity: RPCEntity {
     enum Method: RPCEntityMethod {
         case setStrokeColor
+        case removeAllStroke
         case removeStroke
         case addStrokePoint
         case finishStroke
@@ -57,6 +67,7 @@ struct PaintingEntity: RPCEntity {
     
     enum Param: RPCEntityParam {
         case setStrokeColor(SetStrokeColorParam)
+        case removeAllStroke(RemoveAllStrokeParam)
         case removeStroke(RemoveStrokeParam)
         case addStrokePoint(AddStrokePointParam)
         case finishStroke(FinishStrokeParam)
@@ -65,7 +76,11 @@ struct PaintingEntity: RPCEntity {
             let strokeColorName: String
         }
         
+        struct RemoveAllStrokeParam: Codable {
+        }
+        
         struct RemoveStrokeParam: Codable {
+            let strokeId: String
         }
         
         struct AddStrokePointParam: Codable {
@@ -80,6 +95,8 @@ struct PaintingEntity: RPCEntity {
             switch self {
             case .setStrokeColor(let param):
                 try container.encode(param, forKey: .setStrokeColor)
+            case .removeAllStroke(let param):
+                try container.encode(param, forKey: .removeAllStroke)
             case .removeStroke(let param):
                 try container.encode(param, forKey: .removeStroke)
             case .addStrokePoint(let param):
@@ -93,6 +110,8 @@ struct PaintingEntity: RPCEntity {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             if let param = try? container.decode(SetStrokeColorParam.self, forKey: .setStrokeColor) {
                 self = .setStrokeColor(param)
+            } else if let param = try? container.decode(RemoveAllStrokeParam.self, forKey: .removeAllStroke) {
+                self = .removeAllStroke(param)
             } else if let param = try? container.decode(RemoveStrokeParam.self, forKey: .removeStroke) {
                 self = .removeStroke(param)
             } else if let param = try? container.decode(AddStrokePointParam.self, forKey: .addStrokePoint) {
@@ -106,6 +125,7 @@ struct PaintingEntity: RPCEntity {
         
         internal enum CodingKeys: CodingKey {
             case setStrokeColor
+            case removeAllStroke
             case removeStroke
             case addStrokePoint
             case finishStroke
@@ -114,6 +134,7 @@ struct PaintingEntity: RPCEntity {
 }
 
 typealias SetStrokeColorParam = PaintingEntity.Param.SetStrokeColorParam
+typealias RemoveAllStrokeParam = PaintingEntity.Param.RemoveAllStrokeParam
 typealias RemoveStrokeParam = PaintingEntity.Param.RemoveStrokeParam
 typealias AddStrokePointParam = PaintingEntity.Param.AddStrokePointParam
 typealias FinishStrokeParam = PaintingEntity.Param.FinishStrokeParam

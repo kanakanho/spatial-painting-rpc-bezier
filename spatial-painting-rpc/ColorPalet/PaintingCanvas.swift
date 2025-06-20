@@ -13,6 +13,7 @@ class PaintingCanvas {
     /// The main root entity for the painting canvas.
     let root = Entity()
     var strokes: [Stroke] = []
+    var corisionStrokePoints: [UUID: SIMD3<Float>] = [:]
     
     /// The stroke that a person creates.
     var currentStroke: Stroke?
@@ -69,9 +70,9 @@ class PaintingCanvas {
         /// currentPosition との距離が一定以上離れている場合は早期リターンする
         let distance = length(position - currentPosition)
         currentPosition = position
-        print("distance: \(distance)")
+        //        print("distance: \(distance)")
         if distance > 0.1 {
-            print("distance is too far, return")
+            //            print("distance is too far, return")
             currentStroke = nil
             return
         }
@@ -110,6 +111,10 @@ class PaintingCanvas {
             // Clear the current stroke.
             currentStroke = nil
             isFirstStroke = true
+            
+            for point in stroke.points {
+                corisionStrokePoints[stroke.uuid] = point
+            }
         }
     }
 }

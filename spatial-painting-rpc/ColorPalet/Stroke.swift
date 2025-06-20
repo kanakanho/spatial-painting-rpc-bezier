@@ -16,6 +16,8 @@ class Stroke {
         activeColor = color
     }
     
+    var uuid: UUID = UUID()
+    
     /// The stroke that represents the stroke.
     var entity = Entity()
     
@@ -27,6 +29,10 @@ class Stroke {
     
     /// The number of points in each ring of the mesh.
     let pointsPerRing = 8
+    
+    init() {
+        entity.name = uuid.uuidString
+    }
     
     /// Update the mesh with the points of the stroke if it already exists,
     /// or create a new one with the given mesh data.
@@ -56,6 +62,16 @@ class Stroke {
         if let mesh = entity.model?.mesh {
             do {
                 try mesh.replace(with: contents)
+                // メッシュが更新されたら、CollisionComponentの形状も更新を検討
+                guard let mesh = try? MeshResource.generate(from: contents) else {
+                    print("Error generating mesh")
+                    return
+                }
+                entity.components.set(ModelComponent(mesh: mesh, materials: [SimpleMaterial(color: activeColor, roughness: 1.0, isMetallic: false)]))
+
+                // 位置の初期化
+                entity.setTransformMatrix(.identity, relativeTo: nil)
+                entity.setPosition(center, relativeTo: nil)
             } catch {
                 print("Error replacing mesh: \(error.localizedDescription)")
             }

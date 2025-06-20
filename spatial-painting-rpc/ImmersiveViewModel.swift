@@ -195,10 +195,10 @@ class ViewModel {
     
     // 手のひらをどこに向けているのかを判定
     func watchLeftPalm(handAnchor: HandAnchor) {
-        // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
-        if !isCanvasEnabled {
-            return
-        }
+//        // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
+//        if !isCanvasEnabled {
+//            return
+//        }
         
         guard let middleFingerIntermediateBase = handAnchor.handSkeleton?.joint(.middleFingerIntermediateBase) else {
             return
