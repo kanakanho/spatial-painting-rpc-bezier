@@ -473,7 +473,8 @@ def Xform "Root"
 
                 over "mat1PreviewSurface"
                 {
-                    float inputs:opacity = 0.6
+                    float inputs:opacity = 0.3
+                    float inputs:roughness = 0
                 }
             }
         }
@@ -605,6 +606,71 @@ def Xform "Root"
                         colorSpace = "srgb_displayp3"
                     )
                     float inputs:metallic = 1
+                }
+            }
+        }
+    }
+
+    def "collider" (
+        active = true
+        prepend apiSchemas = ["MaterialBindingAPI"]
+        prepend references = @collider.usdz@
+    )
+    {
+        rel material:binding = </Root/white/Materials/mat1> (
+            bindMaterialAs = "weakerThanDescendants"
+        )
+        float3 xformOp:scale = (0.004, 0.004, 0.004)
+        float3 xformOp:translate = (0, 0.9, -0.7)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+        over "Materials"
+        {
+            over "mat1"
+            {
+                token outputs:mtlx:surface
+                token outputs:realitykit:vertex
+
+                over "mat1PreviewSurface"
+                {
+                    color3f inputs:diffuseColor = (0.69636077, 0.69636077, 0.69636077) (
+                        colorSpace = "srgb_displayp3"
+                    )
+                    float inputs:opacity = 0
+                    float inputs:opacityThreshold
+                    float inputs:roughness = 1
+                }
+            }
+        }
+
+        over "collider" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = None (
+                bindMaterialAs = "weakerThanDescendants"
+            )
+        }
+
+        def RealityKitComponent "InputTarget"
+        {
+            uniform token info:id = "RealityKit.InputTarget"
+        }
+
+        def RealityKitComponent "Collider"
+        {
+            uint group = 1
+            uniform token info:id = "RealityKit.Collider"
+            uint mask = 4294967295
+            token type = "Default"
+
+            def RealityKitStruct "Shape"
+            {
+                float3 extent = (10, 10, 10)
+                token shapeType = "Box"
+
+                def RealityKitStruct "pose"
+                {
                 }
             }
         }

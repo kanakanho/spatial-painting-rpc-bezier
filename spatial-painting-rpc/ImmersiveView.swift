@@ -18,16 +18,34 @@ struct ImmersiveView: View {
     @State var latestRightIndexFingerCoordinates: simd_float4x4 = .init()
     @State var lastIndexPose: SIMD3<Float>?
     
+    // added by nagao 2025/6/18
+    @State var headLockedEntity: Entity = {
+        let headAnchor = AnchorEntity(.head)
+        headAnchor.position = [0.0, 0.0, -0.3]
+        return headAnchor
+    }()
+    
     var body: some View {
         RealityView { content in
             do {
                 let scene = try await Entity(named: "Immersive", in: realityKitContentBundle)
-                appModel.rpcModel.painting.colorPaletModel.setSceneEntity(scene: scene)
+                
+                // added by nagao 2025/6/18
+                if let eraserEntity = scene.findEntity(named: "collider") {
+                    appModel.rpcModel.painting.paintingCanvas.setEraserEntity(eraserEntity)
+                } else {
+                    print("eraserEntity not found")
+                }
+                
+                content.add(headLockedEntity)
+                appModel.model.setHeadLockedEntity(headLockedEntity)
+                
+                appModel.rpcModel.painting.colorPalletModel.setSceneEntity(scene: scene)
                 
                 content.add(appModel.model.setupContentEntity())
-                appModel.model.initColorPaletNodel(colorPaletModel: appModel.rpcModel.painting.colorPaletModel)
-                content.add(appModel.rpcModel.painting.colorPaletModel.colorPaletEntity)
-                appModel.rpcModel.painting.colorPaletModel.initEntity()
+                appModel.model.initColorPalletNodel(colorPalletModel: appModel.rpcModel.painting.colorPalletModel)
+                content.add(appModel.rpcModel.painting.colorPalletModel.colorPalletEntity)
+                appModel.rpcModel.painting.colorPalletModel.initEntity()
                 let root = appModel.rpcModel.painting.paintingCanvas.root
                 content.add(root)
                 
@@ -37,11 +55,30 @@ struct ImmersiveView: View {
                         if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
                             return
                         }
-                        
-                        if appModel.rpcModel.painting.colorPaletModel.colorNames.contains(collisionEvent.entityB.name) {
+                        if appModel.rpcModel.painting.colorPalletModel.colorNames.contains(collisionEvent.entityB.name) {
                             appModel.model.changeFingerColor(entity: fingerEntity, colorName: collisionEvent.entityB.name)
-                        } else if (collisionEvent.entityB.name == "clear") {
+                            appModel.model.isEraserMode = false
+                        } else if collisionEvent.entityB.name == "clear" {
+                            let material = SimpleMaterial(color: UIColor(red: 220/255, green: 220/255, blue: 220/255, alpha: 0.2), isMetallic: true)
+                            fingerEntity.components.set(ModelComponent(mesh: .generateSphere(radius: 0.01), materials: [material]))
+                            appModel.model.isEraserMode = true
                             _ = appModel.model.recordTime(isBegan: true)
+                        } else if collisionEvent.entityB.components.contains(where: {$0 is StrokeComponent}) {
+                            // 削除モードのときのみ処理を実行する
+                            if !appModel.model.isEraserMode {
+                                return
+                            }
+                            // ストロークの取得
+                            guard let strokeComponent = collisionEvent.entityB.components[StrokeComponent.self] else {
+                                return
+                            }
+                            _ = appModel.rpcModel.sendRequest(
+                                RequestSchema(
+                                    peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
+                                    method: .removeStroke,
+                                    param: .removeStroke(.init(uuid: strokeComponent.uuid))
+                                )
+                            )
                         }
                     }
                     
@@ -51,7 +88,7 @@ struct ImmersiveView: View {
                             return
                         }
                         
-                        if appModel.rpcModel.painting.colorPaletModel.colorNames.contains(collisionEvent.entityB.name) {
+                        if appModel.rpcModel.painting.colorPalletModel.colorNames.contains(collisionEvent.entityB.name) {
                             _ = appModel.rpcModel.sendRequest(
                                 RequestSchema(
                                     peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
@@ -66,11 +103,26 @@ struct ImmersiveView: View {
                                 _ = appModel.rpcModel.sendRequest(
                                     RequestSchema(
                                         peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
-                                        method: .removeStroke,
-                                        param: .removeStroke(.init())
+                                        method: .removeAllStroke,
+                                        param: .removeAllStroke(.init())
                                     )
                                 )
                             }
+                        } else if (collisionEvent.entityB.components.contains(where: {$0 is StrokeComponent})) {
+                            if !appModel.model.isEraserMode {
+                                return
+                            }
+                            guard let strokeComponent = collisionEvent.entityB.components[StrokeComponent.self] else {
+                                return
+                            }
+                            print("Removing stroke with UUID: \(strokeComponent.uuid)")
+                            _ = appModel.rpcModel.sendRequest(
+                                RequestSchema(
+                                    peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
+                                    method: .removeStroke,
+                                    param: .removeStroke(.init(uuid: strokeComponent.uuid))
+                                )
+                            )
                         }
                     }
                 }
@@ -141,6 +193,18 @@ struct ImmersiveView: View {
         .task {
             appModel.model.showFingerTipSpheres()
         }
+        .onChange(of: appModel.model.isArrowShown) { _, newValue in
+            Task {
+                if newValue {
+                    appModel.model.showHandArrowEntities()
+                } else {
+                    appModel.model.hideHandArrowEntities()
+                }
+            }
+        }
+        .onDisappear {
+            appModel.model.dismissHandArrowEntities()
+        }
         .gesture(
             DragGesture(minimumDistance: 0)
                 .targetedToAnyEntity()
@@ -149,8 +213,9 @@ struct ImmersiveView: View {
                     if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
                         return
                     }
-                    if let pos = lastIndexPose {
-                        appModel.rpcModel.painting.paintingCanvas.addPoint(pos)
+                    if !appModel.model.isEraserMode, let pos = lastIndexPose {
+                        let uuid: UUID = UUID()
+                        appModel.rpcModel.painting.paintingCanvas.addPoint(uuid, pos)
                         let matrix:[Double] = [pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(), 1]
                         for (id,affineMatrix) in appModel.rpcModel.coordinateTransforms.affineMatrixs {
                             let clientPos = matmul4x4_4x1(affineMatrix.doubleList, matrix)
@@ -158,9 +223,13 @@ struct ImmersiveView: View {
                                 RequestSchema(
                                     peerId: appModel.rpcModel.mcPeerIDUUIDWrapper.mine.hash,
                                     method: .addStrokePoint,
-                                    param: .addStrokePoint(.init(
-                                        point: .init(x: Float(clientPos[0]), y: Float(clientPos[1]), z: Float(clientPos[2]))
-                                    ))),
+                                    param: .addStrokePoint(
+                                        .init(
+                                            uuid: uuid,
+                                            point: .init(x: Float(clientPos[0]), y: Float(clientPos[1]), z: Float(clientPos[2]))
+                                        )
+                                    )
+                                ),
                                 mcPeerId: id
                             )
                         }
@@ -171,14 +240,15 @@ struct ImmersiveView: View {
                     if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
                         return
                     }
-                    
-                    _ = appModel.rpcModel.sendRequest(
-                        RequestSchema(
-                            peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
-                            method: .finishStroke,
-                            param: .finishStroke(.init())
+                    if !appModel.model.isEraserMode {
+                        _ = appModel.rpcModel.sendRequest(
+                            RequestSchema(
+                                peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
+                                method: .finishStroke,
+                                param: .finishStroke(.init())
+                            )
                         )
-                    )
+                    }
                 })
         )
         .onChange(of: appModel.rpcModel.coordinateTransforms.affineMatrixs) {
