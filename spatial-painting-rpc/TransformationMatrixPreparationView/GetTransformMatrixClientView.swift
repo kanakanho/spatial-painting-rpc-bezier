@@ -40,15 +40,6 @@ struct GetTransformMatrixClientView: View {
     }
     
     private func returnToInitial() {
-        let rpcResult = rpcModel.sendRequest(
-            RequestSchema(
-                peerId: rpcModel.mcPeerIDUUIDWrapper.mine.hash,
-                method: .resetPeer,
-                param: .resetPeer(.init())
-            )
-        )
-        if !rpcResult.success {
-            errorMessage = rpcResult.errorMessage
-        }
+        _ = rpcModel.coordinateTransforms.resetPeer(param: .init())
     }
 }
