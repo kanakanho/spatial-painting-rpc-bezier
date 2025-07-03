@@ -266,6 +266,8 @@ class RPCModel: ObservableObject {
         case (.paintingEntity(.addStrokePoint),.paintingEntity(.addStrokePoint(_))):
             // 自身に対して追加操作を行わない
             break
+        case let (.paintingEntity(.addStrokes),.paintingEntity(.addStrokes(p))):
+            painting.addStrokes(param: p)
         case let
             (.paintingEntity(.setStrokeColor),.paintingEntity(.setStrokeColor(p))):
             painting.setStrokeColor(param: p)

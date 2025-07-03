@@ -94,7 +94,7 @@ struct ExternalStrokeView: View {
                             let transformedExternalStrokes = externalStrokes.map({ externalStroke in
                                 // points 全てにアフィン変換を適用
                                 let transformedPoints = externalStroke.points.map { point in
-                                    return SIMD3<Float>(affineMatrix * .init(point))
+                                    return SIMD3<Float>(affineMatrix * SIMD4<Float>(point.x, point.y, point.z, 1.0))
                                 }
                                 return ExternalStroke(uuid: externalStroke.uuid, points: transformedPoints, cgColor: externalStroke.color)
                             })
