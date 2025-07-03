@@ -12,8 +12,7 @@ import SwiftUI
 @Observable
 @MainActor
 class ViewModel {
-    var isCanvasEnabled: Bool = false
-    var colorPalletModel: ColorPalletModel?
+    var colorPalletModel: ColorPalletModel = ColorPalletModel()
     
     var session = ARKitSession()
     var handTracking = HandTrackingProvider()
@@ -47,26 +46,30 @@ class ViewModel {
     
     // ストロークを選択的に消去するモード added by nagao 2025/6/20
     var isEraserMode: Bool = false
-
+    
     // added by nagao 2025/6/18
     var handSphereEntity: Entity? = nil
-
+    
     var handArrowEntities: [Entity] = []
     
-    var headLockedEntity: Entity?
-
     var axisVectors: [SIMD3<Float>] = [SIMD3<Float>(0,0,0), SIMD3<Float>(0,0,0), SIMD3<Float>(0,0,0)]
     
     var normalVector: SIMD3<Float> = SIMD3<Float>(0,0,0)
-
-    var senseThreshold: Float = 0.3  // 感度の閾値
+    
+    var buttonEntity: Entity?
+    
+    var planeNormalVector: SIMD3<Float> = SIMD3<Float>(0,0,0)
+    
+    var planePoint: SIMD3<Float> = SIMD3<Float>(0,0,0)
+    
+    var senseThreshold: Float = 0.5  // 感度の閾値
     var distanceThreshold: Float = 0.8  // 距離の閾値
     var isArrowShown: Bool = false  // 手の向きを表す矢印の表示
-
-    func setHeadLockedEntity(_ entity: Entity) {
-        self.headLockedEntity = entity
+    
+    func setButtonEntity(_ entity: Entity) {
+        self.buttonEntity = entity
     }
-
+    
     func showHandArrowEntities() {
         if handSphereEntity != nil {
             contentEntity.addChild(handSphereEntity!)
@@ -77,7 +80,7 @@ class ViewModel {
             }
         }
     }
-
+    
     func hideHandArrowEntities() {
         if handSphereEntity != nil {
             handSphereEntity!.removeFromParent()
@@ -88,7 +91,7 @@ class ViewModel {
             }
         }
     }
-
+    
     func dismissHandArrowEntities() {
         if handSphereEntity != nil {
             handSphereEntity!.removeFromParent()
@@ -100,9 +103,11 @@ class ViewModel {
             }
         }
         handSphereEntity = nil
-        colorPalletModel?.colorPalletEntityDisable()
+        colorPalletModel.colorPalletEntityDisable()
+        
+        buttonEntity!.removeFromParent()
     }
-
+    
     var fingerEntities: [HandAnchor.Chirality: ModelEntity] = [
         //        .left: .createFingertip(name: "L", color: UIColor(red: 220/255, green: 220/255, blue: 220/255, alpha: 1.0)),
         .right: .createFingertip(name: "R", color: UIColor(red: 220/255, green: 220/255, blue: 220/255, alpha: 1.0))
@@ -251,36 +256,35 @@ class ViewModel {
         }
     }
     
-    // 手のひらをどこに向けているのかを判定 modified by nagao 2025/6/18
+    // 左の掌の向きを計算
     func watchLeftPalm(handAnchor: HandAnchor) {
-        // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
-        if !isCanvasEnabled {
-            return
-        }
-
         guard let middleBase = handAnchor.handSkeleton?.joint(.middleFingerTip),
-        let littleBase = handAnchor.handSkeleton?.joint(.littleFingerTip),
-        let thumbBase = handAnchor.handSkeleton?.joint(.thumbTip),
-        let middleFingerIntermediateBase = handAnchor.handSkeleton?.joint(.middleFingerIntermediateBase),
-        let middleFingerKnuckleBase = handAnchor.handSkeleton?.joint(.middleFingerKnuckle),
-        let wristBase = handAnchor.handSkeleton?.joint(.wrist)
+              let littleBase = handAnchor.handSkeleton?.joint(.littleFingerTip),
+              let thumbBase = handAnchor.handSkeleton?.joint(.thumbTip),
+              let middleFingerIntermediateBase = handAnchor.handSkeleton?.joint(.middleFingerIntermediateBase),
+              let middleFingerKnuckleBase = handAnchor.handSkeleton?.joint(.middleFingerKnuckle),
+              let wristBase = handAnchor.handSkeleton?.joint(.wrist)
         else { return }
-
-        guard let head: simd_float4x4 = headLockedEntity?.transformMatrix(relativeTo: nil) else { return }
-
+        
+        guard let rightHandAnchor = latestHandTracking.right,
+              let rightWristBase = rightHandAnchor.handSkeleton?.joint(.wrist)
+        else { return }
+        
+        guard let button = buttonEntity else { return }
+        
         let middle: simd_float4x4 = handAnchor.originFromAnchorTransform * middleBase.anchorFromJointTransform
         let little: simd_float4x4 = handAnchor.originFromAnchorTransform * littleBase.anchorFromJointTransform
         let wrist: simd_float4x4 = handAnchor.originFromAnchorTransform * wristBase.anchorFromJointTransform
         let thumb: simd_float4x4 = handAnchor.originFromAnchorTransform * thumbBase.anchorFromJointTransform
         let positionMatrix: simd_float4x4 = handAnchor.originFromAnchorTransform * middleFingerIntermediateBase.anchorFromJointTransform
         let middleKnuckle: simd_float4x4 = handAnchor.originFromAnchorTransform * middleFingerKnuckleBase.anchorFromJointTransform
-
+        
         let wristPos = simd_make_float3(wrist.columns.3)
         let middlePos = simd_make_float3(middle.columns.3)
         let littlePos = simd_make_float3(little.columns.3)
         let thumbPos = simd_make_float3(thumb.columns.3)
         let middleKnucklePos = simd_make_float3(middleKnuckle.columns.3)
-
+        
         let distances = [
             distance(middlePos, thumbPos),
             distance(middlePos, littlePos),
@@ -304,7 +308,7 @@ class ViewModel {
                 }
             }
             handSphereEntity = nil
-            colorPalletModel?.colorPalletEntityDisable()
+            colorPalletModel.colorPalletEntityDisable()
             return
         } else {
             if handSphereEntity == nil {
@@ -313,27 +317,42 @@ class ViewModel {
                 updateHandSphere(wrist: wristPos, middle: middlePos, little: littlePos)
             }
         }
-
-        // ワールドの下方向ベクトル
-        let worldUp = simd_float3(0, -1, 0)
+        
+        // ワールドの上方向ベクトル
+        let worldUp = simd_float3(0, 1, 0)
         let dot = simd_dot(normalVector, worldUp)
+        if dot > senseThreshold {
+            button.setPosition(calculateExtendedPoint(point: planePoint, vector: normalVector, distance: 0.07), relativeTo: nil)
+            contentEntity.addChild(button)
+        } else {
+            button.removeFromParent()
+        }
+        
+        // ワールドの下方向ベクトル
+        let worldDown = simd_float3(0, -1, 0)
+        let dot2 = simd_dot(normalVector, worldDown)
         //print("💥 法線ベクトルとの内積 \(dot)")
-        let distance = distance(positionMatrix.position, head.position) / 2.0
+        //let distance = distance(positionMatrix.position, head.position) / 2.0
         //print("💥 頭との距離 \(distance)")
-        let isShow = dot > senseThreshold && distance < distanceThreshold
-
+        
+        let rightWrist: simd_float4x4 = rightHandAnchor.originFromAnchorTransform * rightWristBase.anchorFromJointTransform
+        let rightWristPos = simd_make_float3(rightWrist.columns.3)
+        let distance = distance(positionMatrix.position, rightWristPos)
+        //print("💥 右手との距離 \(distance)")
+        
+        let isShow = dot2 > senseThreshold && distance < distanceThreshold
+        
         if (!isShow) {
-            colorPalletModel?.colorPalletEntityDisable()
+            colorPalletModel.colorPalletEntityDisable()
             return
         }
-
-        guard let isEnabled = colorPalletModel?.colorPalletEntity.isEnabled else { return }
-
-        if !isEnabled {
-            colorPalletModel?.colorPalletEntityEnabled()
+        
+        //colorPalletModel.colorPalletEntityEnabled()
+        if !(colorPalletModel.colorPalletEntity.isEnabled) {
+            colorPalletModel.colorPalletEntityEnabled()
         }
-
-        colorPalletModel?.updatePosition(position: positionMatrix.position, headPosition: head.position)
+        colorPalletModel.updatePosition(position: positionMatrix.position, wristPosition: wristPos)
+        
     }
     
     func createHandSphere(wrist: SIMD3<Float>, middle: SIMD3<Float>, little: SIMD3<Float>, isArrowShown: Bool) {
@@ -346,23 +365,27 @@ class ViewModel {
         let perpendicularVector = perpendicularVectorFromPointToSegment(A: wrist, B: middle, C: little)
         
         axisVectors[1] = simd_normalize(perpendicularVector)
-
+        
         axisVectors[2] = simd_cross(axisVectors[0], axisVectors[1])
-
+        
         let sphereEntity = ModelEntity(mesh: .generateSphere(radius: 0.02), materials: [SimpleMaterial(color: .systemRed, isMetallic: false)], collisionShape: .generateSphere(radius: 0.02), mass: 0.0)
-
+        
         let center = (wrist + middle) / 2.0
         
         sphereEntity.position = center
-
+        
         if isArrowShown {
             contentEntity.addChild(sphereEntity)
         }
-
+        
         handSphereEntity = sphereEntity
         
         normalVector = axisVectors[2]
-
+        
+        planeNormalVector = axisVectors[0]
+        
+        planePoint = center
+        
         for vector in axisVectors {
             let arrowEntity = Entity()
             
@@ -408,7 +431,7 @@ class ViewModel {
         if handSphereEntity == nil {
             return
         }
-
+        
         // 中指と手首を結ぶベクトル
         let axisVector = simd_float3(x: middle.x - wrist.x, y: middle.y - wrist.y, z: middle.z - wrist.z)
         
@@ -418,15 +441,19 @@ class ViewModel {
         let perpendicularVector = perpendicularVectorFromPointToSegment(A: wrist, B: middle, C: little)
         
         let currentLittleVector = simd_normalize(perpendicularVector)
-
+        
         let currentNormalVector = simd_cross(currentAxisVector, currentLittleVector)
-
+        
         let center = (wrist + middle) / 2.0
         
         handSphereEntity!.position = center
         
         normalVector = currentNormalVector
-
+        
+        planeNormalVector = currentAxisVector
+        
+        planePoint = center
+        
         let vectors = [currentAxisVector, currentLittleVector, currentNormalVector]
         var quats: [simd_quatf] = []
         for (index, vector) in vectors.enumerated() {
@@ -442,7 +469,7 @@ class ViewModel {
             arrowEntity.orientation = quat
         }
     }
-
+    
     // 線分ABからCへの垂線ベクトルを計算する関数
     func perpendicularVectorFromPointToSegment(A: simd_float3, B: simd_float3, C: simd_float3) -> simd_float3 {
         let AB = B - A
@@ -491,11 +518,9 @@ class ViewModel {
             return simd_quatf(angle: 0, axis: simd_float3(0, 1, 0))  // 回転不要
         }
     }
-
+    
     func changeFingerColor(entity: Entity, colorName: String) {
-        guard let colors = colorPalletModel?.colors else {
-            return
-        }
+        let colors = colorPalletModel.colors
         for color in colors {
             let words = color.accessibilityName.split(separator: " ")
             if let name = words.last, name == colorName {
@@ -504,6 +529,17 @@ class ViewModel {
                 break
             }
         }
+    }
+    
+    // 点から単位ベクトル方向にある、その点から一定距離分離れた位置の点を計算する関数
+    func calculateExtendedPoint(point: SIMD3<Float>, vector: SIMD3<Float>, distance: Float) -> SIMD3<Float> {
+        // 単位ベクトルにスカラー量（距離）を掛けて延長方向のベクトルを計算
+        let extensionVector = SIMD3<Float>(x: vector.x * distance, y: vector.y * distance, z: vector.z * distance)
+        
+        // 点に延長ベクトルを加えて、新しい点の座標を計算
+        let extendedPoint = SIMD3<Float>(x: point.x + extensionVector.x, y: point.y + extensionVector.y, z: point.z + extensionVector.z)
+        
+        return extendedPoint
     }
     
     // ストロークを消去する時の長押し時間の処理 added by nagao 2025/3/24
@@ -597,6 +633,7 @@ class ViewModel {
     }
     
     func initColorPalletNodel(colorPalletModel: ColorPalletModel) {
+        print("initColorPalletNodel")
         self.colorPalletModel = colorPalletModel
     }
     

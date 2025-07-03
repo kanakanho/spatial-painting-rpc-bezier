@@ -20,8 +20,15 @@ struct ContentView: View {
     @State private var sharedCoordinateState: SharedCoordinateState = .prepare
     @Environment(\.scenePhase) var scenePhase
     
+    @Environment(\.openWindow) private var openWindow
+    
     var body: some View {
         VStack {
+            Button("File Manager") {
+                openWindow(id: "ExternalStroke")
+            }
+            .padding(.horizontal)
+            
             ToggleImmersiveSpaceButton()
                 .environmentObject(appModel)
             NavigationStack {

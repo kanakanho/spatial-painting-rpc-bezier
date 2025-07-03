@@ -60,6 +60,11 @@ class Painting:ObservableObject {
     func finishStroke() {
         paintingCanvas.finishStroke()
     }
+    
+    /// 複数のストロークを追加する
+    func addStrokes(param: AddStrokesParam) {
+        paintingCanvas.addStrokes(param.externalStrokes.strokes())
+    }
 }
 
 struct PaintingEntity: RPCEntity {
@@ -68,6 +73,7 @@ struct PaintingEntity: RPCEntity {
         case removeAllStroke
         case removeStroke
         case addStrokePoint
+        case addStrokes
         case finishStroke
     }
     
@@ -76,6 +82,7 @@ struct PaintingEntity: RPCEntity {
         case removeAllStroke(RemoveAllStrokeParam)
         case removeStroke(RemoveStrokeParam)
         case addStrokePoint(AddStrokePointParam)
+        case addStrokes(AddStrokesParam)
         case finishStroke(FinishStrokeParam)
         
         struct SetStrokeColorParam: Codable {
@@ -94,6 +101,10 @@ struct PaintingEntity: RPCEntity {
             let point: SIMD3<Float>
         }
         
+        struct AddStrokesParam: Codable {
+            let externalStrokes: [ExternalStroke]
+        }
+        
         struct FinishStrokeParam: Codable {
         }
         
@@ -108,6 +119,8 @@ struct PaintingEntity: RPCEntity {
                 try container.encode(param, forKey: .removeStroke)
             case .addStrokePoint(let param):
                 try container.encode(param, forKey: .addStrokePoint)
+            case .addStrokes(let param):
+                try container.encode(param, forKey: .addStrokes)
             case .finishStroke(let param):
                 try container.encode(param, forKey: .finishStroke)
             }
@@ -123,6 +136,8 @@ struct PaintingEntity: RPCEntity {
                 self = .removeStroke(param)
             } else if let param = try? container.decode(AddStrokePointParam.self, forKey: .addStrokePoint) {
                 self = .addStrokePoint(param)
+            } else if let param = try? container.decode(AddStrokesParam.self, forKey: .addStrokes) {
+                self = .addStrokes(param)
             } else if let param = try? container.decode(FinishStrokeParam.self, forKey: .finishStroke) {
                 self = .finishStroke(param)
             } else {
@@ -135,6 +150,7 @@ struct PaintingEntity: RPCEntity {
             case removeAllStroke
             case removeStroke
             case addStrokePoint
+            case addStrokes
             case finishStroke
         }
     }
@@ -144,4 +160,5 @@ typealias SetStrokeColorParam = PaintingEntity.Param.SetStrokeColorParam
 typealias RemoveAllStrokesParam = PaintingEntity.Param.RemoveAllStrokeParam
 typealias RemoveStrokeParam = PaintingEntity.Param.RemoveStrokeParam
 typealias AddStrokePointParam = PaintingEntity.Param.AddStrokePointParam
+typealias AddStrokesParam = PaintingEntity.Param.AddStrokesParam
 typealias FinishStrokeParam = PaintingEntity.Param.FinishStrokeParam

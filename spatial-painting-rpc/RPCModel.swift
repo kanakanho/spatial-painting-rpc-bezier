@@ -225,7 +225,7 @@ class RPCModel: ObservableObject {
             painting.finishStroke()
         case let
             (.paintingEntity(.setStrokeColor),.paintingEntity(.setStrokeColor(p))):
-                painting.setStrokeColor(param: p)
+            painting.setStrokeColor(param: p)
         case (.paintingEntity(.removeAllStroke),.paintingEntity(.removeAllStroke(_))):
             painting.removeAllStroke()
         case let
@@ -268,7 +268,7 @@ class RPCModel: ObservableObject {
             break
         case let
             (.paintingEntity(.setStrokeColor),.paintingEntity(.setStrokeColor(p))):
-                painting.setStrokeColor(param: p)
+            painting.setStrokeColor(param: p)
         default:
             return RPCResult("Invalid request")
         }
@@ -300,9 +300,11 @@ class RPCModel: ObservableObject {
             painting.addStrokePoint(param: p)
         case  (.paintingEntity(.finishStroke),.paintingEntity(.finishStroke(_))):
             painting.finishStroke()
+        case let (.paintingEntity(.addStrokes),.paintingEntity(.addStrokes(p))):
+            painting.addStrokes(param: p)
         case let
             (.paintingEntity(.setStrokeColor),.paintingEntity(.setStrokeColor(p))):
-                painting.setStrokeColor(param: p)
+            painting.setStrokeColor(param: p)
         case (.paintingEntity(.removeAllStroke),.paintingEntity(.removeAllStroke(_))):
             painting.removeAllStroke()
         case let

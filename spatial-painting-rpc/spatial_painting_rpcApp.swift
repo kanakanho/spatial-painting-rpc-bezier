@@ -17,6 +17,13 @@ struct spatial_painting_rpcApp: App {
                 .environmentObject(appModel)
         }
         
+        WindowGroup("ExternalStroke", id: "ExternalStroke") {
+            ExternalStrokeView()
+                .environmentObject(appModel)
+                .handlesExternalEvents(preferring: [], allowing: [])
+        }
+        .handlesExternalEvents(matching: ["targetContentIdentifier"])
+        
         ImmersiveSpace(id: appModel.immersiveSpaceID) {
             ImmersiveView()
                 .environmentObject(appModel)

@@ -64,46 +64,48 @@ class ColorPalletModel: ObservableObject {
         activeColor = color
     }
     
-    // modified by nagao 2025/6/18
-    func updatePosition(position: SIMD3<Float>, headPosition: SIMD3<Float>) {
-        // 1) 手から頭への水平ベクトル
-        let toHead = normalize(simd_make_float3(
-            headPosition.x - position.x,
+    // modified by nagao 2025/6/16
+    func updatePosition(position: SIMD3<Float>, wristPosition: SIMD3<Float>) {
+        // 1) 手から手首への水平ベクトル
+        let toWrist = normalize(simd_make_float3(
+            wristPosition.x - position.x,
             0,
-            headPosition.z - position.z
+            wristPosition.z - position.z
         ))
-
+        
         // 2) ワールド前方向ベクトル (RealityKit ではカメラ前方が -z)
         let worldForward = normalize(simd_float3(0, 0, -1))
-
+        
         // 3) 符号付きヨー角 (rad)：右手系で y 軸回り
         let yaw = atan2(
-            simd_dot(toHead, simd_float3(1,0,0)),      // x 成分
-            simd_dot(toHead, worldForward)             // z 成分
+            simd_dot(toWrist, simd_float3(1,0,0)),      // x 成分
+            simd_dot(toWrist, worldForward)             // z 成分
         )
-
+        
         for (index,color) in zip(colors.indices, colors) {
             let radians: Float = Float.pi / 180.0 * 360.0 / Float(colors.count) * Float(index)
             var ballPosition: SIMD3<Float> = SIMD3<Float>(0.0, 0.0, 0.0)
             
             let rotatedOffset = SIMD3<Float>(
-              radius * sin(radians) * cos(yaw) - 0 * sin(yaw),
-              radius * cos(radians) + centerHeight,
-              radius * sin(radians) * sin(yaw) + 0 * cos(yaw)
+                radius * sin(radians) * cos(yaw) - 0 * sin(yaw),
+                radius * cos(radians) + centerHeight,
+                radius * sin(radians) * sin(yaw) + 0 * cos(yaw)
             )
-
+            
             if index == 0 || index == Int(colors.count / 2) {
                 ballPosition = position + SIMD3<Float>(radius * sin(radians), radius * cos(radians) + centerHeight, 0.0)
             } else {
+                //ballPosition = position + SIMD3<Float>(radius * sin(radians) * cos(angle), radius * cos(radians) + centerHeight, radius * sin(radians) * sin(angle))
                 ballPosition = position + rotatedOffset
             }
             
+            //colorPalletEntity.findEntity(named: color.accessibilityName)?.setPosition(ballPosition, relativeTo: nil)
             let words = color.accessibilityName.split(separator: " ")
             if let name = words.last, let entity = colorPalletEntity.findEntity(named: String(name)) {
                 entity.setPosition(ballPosition, relativeTo: nil)
             }
         }
-
+        
         if let entity = colorPalletEntity.findEntity(named: "clear") {
             let spherePosition: SIMD3<Float> = position + SIMD3<Float>(0, centerHeight, 0)
             entity.setPosition(spherePosition, relativeTo: nil)

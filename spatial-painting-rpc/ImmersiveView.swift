@@ -15,15 +15,10 @@ struct ImmersiveView: View {
     @Environment(\.dismissImmersiveSpace) var dismissImmersiveSpace
     @Environment(\.openWindow) var openWindow
     
+    @Environment(\.displayScale) private var displayScale: CGFloat
+    
     @State var latestRightIndexFingerCoordinates: simd_float4x4 = .init()
     @State var lastIndexPose: SIMD3<Float>?
-    
-    // added by nagao 2025/6/18
-    @State var headLockedEntity: Entity = {
-        let headAnchor = AnchorEntity(.head)
-        headAnchor.position = [0.0, 0.0, -0.3]
-        return headAnchor
-    }()
     
     var body: some View {
         RealityView { content in
@@ -37,8 +32,11 @@ struct ImmersiveView: View {
                     print("eraserEntity not found")
                 }
                 
-                content.add(headLockedEntity)
-                appModel.model.setHeadLockedEntity(headLockedEntity)
+                if let buttonEntity = scene.findEntity(named: "button") {
+                    appModel.model.setButtonEntity(buttonEntity)
+                } else {
+                    print("buttonEntity not found")
+                }
                 
                 appModel.rpcModel.painting.colorPalletModel.setSceneEntity(scene: scene)
                 
@@ -51,13 +49,11 @@ struct ImmersiveView: View {
                 
                 for fingerEntity in appModel.model.fingerEntities.values {
                     _ = content.subscribe(to: CollisionEvents.Began.self, on: fingerEntity) { collisionEvent in
-                        // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
-                        if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
-                            return
-                        }
                         if appModel.rpcModel.painting.colorPalletModel.colorNames.contains(collisionEvent.entityB.name) {
                             appModel.model.changeFingerColor(entity: fingerEntity, colorName: collisionEvent.entityB.name)
                             appModel.model.isEraserMode = false
+                        } else if (collisionEvent.entityB.name == "button") {
+                            _ = appModel.model.recordTime(isBegan: true)
                         } else if collisionEvent.entityB.name == "clear" {
                             let material = SimpleMaterial(color: UIColor(red: 220/255, green: 220/255, blue: 220/255, alpha: 0.2), isMetallic: true)
                             fingerEntity.components.set(ModelComponent(mesh: .generateSphere(radius: 0.01), materials: [material]))
@@ -83,11 +79,6 @@ struct ImmersiveView: View {
                     }
                     
                     _ = content.subscribe(to: CollisionEvents.Ended.self, on: fingerEntity) { collisionEvent in
-                        // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
-                        if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
-                            return
-                        }
-                        
                         if appModel.rpcModel.painting.colorPalletModel.colorNames.contains(collisionEvent.entityB.name) {
                             _ = appModel.rpcModel.sendRequest(
                                 RequestSchema(
@@ -98,6 +89,11 @@ struct ImmersiveView: View {
                                     )
                                 )
                             )
+                        } else if (collisionEvent.entityB.name == "button") {
+                            if appModel.model.recordTime(isBegan: false) {
+                                let externalStrokes: [ExternalStroke] = .init(strokes: appModel.rpcModel.painting.paintingCanvas.strokes, initPoint: .one)
+                                appModel.externalStrokeFileWapper.writeStroke(externalStrokes: externalStrokes, displayScale: displayScale, planeNormalVector: appModel.model.planeNormalVector, planePoint: appModel.model.planePoint)
+                            }
                         } else if (collisionEvent.entityB.name == "clear") {
                             if appModel.model.recordTime(isBegan: false) {
                                 _ = appModel.rpcModel.sendRequest(
@@ -209,10 +205,6 @@ struct ImmersiveView: View {
             DragGesture(minimumDistance: 0)
                 .targetedToAnyEntity()
                 .onChanged({ _ in
-                    // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
-                    if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
-                        return
-                    }
                     if !appModel.model.isEraserMode, let pos = lastIndexPose {
                         let uuid: UUID = UUID()
                         appModel.rpcModel.painting.paintingCanvas.addPoint(uuid, pos)
@@ -236,10 +228,6 @@ struct ImmersiveView: View {
                     }
                 })
                 .onEnded({ _ in
-                    // 座標変換の処理が終了するまでは、お絵描きの機能を行えないようにする
-                    if appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
-                        return
-                    }
                     if !appModel.model.isEraserMode {
                         _ = appModel.rpcModel.sendRequest(
                             RequestSchema(
@@ -252,10 +240,6 @@ struct ImmersiveView: View {
                 })
         )
         .onChange(of: appModel.rpcModel.coordinateTransforms.affineMatrixs) {
-            if !appModel.model.isCanvasEnabled && !appModel.rpcModel.coordinateTransforms.affineMatrixs.isEmpty {
-                appModel.model.isCanvasEnabled = true
-            }
-            
             appModel.model.resetInitBall()
             appModel.model.disableIndexFingerTipGuideBall()
         }
