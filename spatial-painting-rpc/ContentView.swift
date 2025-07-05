@@ -37,9 +37,7 @@ struct ContentView: View {
                     VStack {
                         Spacer()
                         Button("Start Sharing") {
-                            appModel.peerManager.start()
                             print(appModel.mcPeerIDUUIDWrapper.mine.displayName)
-                            appModel.peerManager.sendMessageForAll("hello")
                             sharedCoordinateState = .sharing
                         }
                         Spacer()
@@ -53,9 +51,26 @@ struct ContentView: View {
             Spacer()
         }
         .padding()
-        .onChange(of: scenePhase) {
-            if scenePhase == .background {
+        .onAppear() {
+            print(">>> App appeared")
+            appModel.peerManager.start()
+            sharedCoordinateState = .prepare
+        }
+        .onChange(of: scenePhase) { oldScenePhase, newScenePhase in
+            if oldScenePhase == .inactive && newScenePhase == .active {
+                print(">>> Scene became active")
+                appModel.peerManager = PeerManager(
+                    sendExchangeDataWrapper: appModel.sendExchangeDataWrapper,
+                    receiveExchangeDataWrapper: appModel.receiveExchangeDataWrapper,
+                    mcPeerIDUUIDWrapper: appModel.mcPeerIDUUIDWrapper
+                )
+                appModel.peerManager.start()
+            }
+            if newScenePhase == .background {
+                print("<<< Scene went to background")
+                sharedCoordinateState = .prepare
                 appModel.mcPeerIDUUIDWrapper.standby.removeAll()
+                appModel.peerManager.stop()
             }
         }
     }

@@ -205,7 +205,9 @@ struct ImmersiveView: View {
             DragGesture(minimumDistance: 0)
                 .targetedToAnyEntity()
                 .onChanged({ _ in
-                    if !appModel.model.isEraserMode, let pos = lastIndexPose {
+                    if !appModel.model.isEraserMode,
+                       appModel.rpcModel.coordinateTransforms.coordinateTransformEntity.state == .initial,
+                       let pos = lastIndexPose {
                         let uuid: UUID = UUID()
                         appModel.rpcModel.painting.paintingCanvas.addPoint(uuid, pos)
                         let matrix:[Double] = [pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(), 1]
@@ -228,7 +230,8 @@ struct ImmersiveView: View {
                     }
                 })
                 .onEnded({ _ in
-                    if !appModel.model.isEraserMode {
+                    if !appModel.model.isEraserMode,
+                       appModel.rpcModel.coordinateTransforms.coordinateTransformEntity.state == .initial {
                         _ = appModel.rpcModel.sendRequest(
                             RequestSchema(
                                 peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,

@@ -23,7 +23,7 @@ struct TransformationMatrixPreparationView: View {
     var body: some View {
         VStack {
             HStack{
-                Text("MyId:\(rpcModel.mcPeerIDUUIDWrapper.mine.hash)").font(.title)
+                Text("MyId:\(rpcModel.mcPeerIDUUIDWrapper.mine.displayName)").font(.title)
                 Text(time)
             }
             Divider()
@@ -31,6 +31,7 @@ struct TransformationMatrixPreparationView: View {
                 switch rpcModel.coordinateTransforms.coordinateTransformEntity.state {
                 case .initial:
                     InitialView(rpcModel: rpcModel)
+                        .disabled(time.isEmpty)
                 case .selecting:
                     SelectingPeerView(rpcModel: rpcModel)
                 case .getTransformMatrixHost:

@@ -48,6 +48,7 @@ struct ConfirmView: View {
         let clacAffineMatrixAtoBRPCResult = rpcModel.coordinateTransforms.clacAffineMatrix(param: .init())
         if !clacAffineMatrixAtoBRPCResult.success {
             errorMessage = clacAffineMatrixAtoBRPCResult.errorMessage
+            return
         }
         
         rpcModel.coordinateTransforms.setAffineMatrix()

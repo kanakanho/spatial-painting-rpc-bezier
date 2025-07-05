@@ -11,6 +11,7 @@ import Foundation
 enum SystemSound: UInt32 {
     case beginVideoRecording = 1117
     case endVideoRecording = 1118
+    case cameraShutterSound = 1108
 
     var systemSoundID: SystemSoundID {
         self.rawValue as SystemSoundID

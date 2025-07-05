@@ -23,7 +23,7 @@ struct SelectingPeerView: View {
             Picker("", selection: $peerIDHash) {
                 Text("選ぶ").tag(nil as Int?)
                 ForEach(rpcModel.mcPeerIDUUIDWrapper.standby, id: \.hash) { peerId in
-                    Text(String(peerId.hash)).tag(peerId.hash)
+                    Text(String(peerId.displayName)).tag(peerId.hash)
                 }
             }
             Spacer()

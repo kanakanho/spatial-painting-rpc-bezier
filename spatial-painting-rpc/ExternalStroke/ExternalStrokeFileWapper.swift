@@ -52,7 +52,7 @@ class ExternalStrokeFileWapper {
             }
             try imageData.write(to: imageFileURL)
             print("Image written to: \(imageFileURL.path)")
-            systemSoundPlayer.play(systemSound: .endVideoRecording)
+            systemSoundPlayer.play(systemSound: .cameraShutterSound)
         } catch {
             print("Error writing file: \(error)")
         }
@@ -74,19 +74,14 @@ class ExternalStrokeFileWapper {
     /// ストロークから画像を作る
     private func makePNGData(strokes: [ExternalStroke], planeNormal: SIMD3<Float>, planePoint: SIMD3<Float>, displayScale: CGFloat) -> Data? {
         let canvasSize = CGSize(width: 1024, height: 1024)
-        /*
-         let n = normalize(planeNormal)
-         let arbitrary: SIMD3<Float> = abs(n.x) < 0.9 ? [1,0,0] : [0,1,0]
-         let u = normalize(cross(n, arbitrary)), v = cross(n, u)
-         */
         // planeNormal を正規化
         let n = normalize(planeNormal)
         // ワールドの下向きベクトル
-        let worldUp = SIMD3<Float>(0, -1, 0)
+        let worldDown = SIMD3<Float>(0, -1, 0)
         
-        // 1) worldUpを平面に落とした「平面内の上向きvを計算
-        var v = worldUp - n * dot(worldUp, n)
-        // もしほとんどゼロベクトル（planeNormalがworldUpと平行）なら
+        // 1) worldDownを平面に落とした「平面内の下向きv」を計算
+        var v = worldDown - n * dot(worldDown, n)
+        // もしほとんどゼロベクトル（planeNormalがworldDownと平行）なら
         if length(v) < 1e-6 {
             // 任意の横方向を使う（平面が水平 or ほぼ水平のときのフォールバック）
             v = normalize(cross(n, SIMD3<Float>(1, 0, 0)))
@@ -167,7 +162,7 @@ class ExternalStrokeFileWapper {
         ) else {
             return nil
         }
-        CGImageDestinationAddImage(dest, cgImg /*finalImage*/, nil)
+        CGImageDestinationAddImage(dest, cgImg, nil)
         guard CGImageDestinationFinalize(dest) else {
             return nil
         }

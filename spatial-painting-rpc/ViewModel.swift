@@ -62,7 +62,7 @@ class ViewModel {
     
     var planePoint: SIMD3<Float> = SIMD3<Float>(0,0,0)
     
-    var senseThreshold: Float = 0.5  // 感度の閾値
+    var senseThreshold: Float = 0.3  // 感度の閾値
     var distanceThreshold: Float = 0.8  // 距離の閾値
     var isArrowShown: Bool = false  // 手の向きを表す矢印の表示
     
@@ -332,8 +332,6 @@ class ViewModel {
         let worldDown = simd_float3(0, -1, 0)
         let dot2 = simd_dot(normalVector, worldDown)
         //print("💥 法線ベクトルとの内積 \(dot)")
-        //let distance = distance(positionMatrix.position, head.position) / 2.0
-        //print("💥 頭との距離 \(distance)")
         
         let rightWrist: simd_float4x4 = rightHandAnchor.originFromAnchorTransform * rightWristBase.anchorFromJointTransform
         let rightWristPos = simd_make_float3(rightWrist.columns.3)
@@ -351,8 +349,8 @@ class ViewModel {
         if !(colorPalletModel.colorPalletEntity.isEnabled) {
             colorPalletModel.colorPalletEntityEnabled()
         }
-        colorPalletModel.updatePosition(position: positionMatrix.position, wristPosition: wristPos)
         
+        colorPalletModel.updatePosition(position: positionMatrix.position, wristPosition: wristPos)
     }
     
     func createHandSphere(wrist: SIMD3<Float>, middle: SIMD3<Float>, little: SIMD3<Float>, isArrowShown: Bool) {

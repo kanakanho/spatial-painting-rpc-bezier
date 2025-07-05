@@ -151,6 +151,11 @@ class CoordinateTransforms: ObservableObject {
         let A = coordinateTransformEntity.A
         let B = coordinateTransformEntity.B
         
+        // それぞれの要素が4つ存在しなければエラーを返す
+        if A.count != 4 || B.count != 4 {
+            return RPCResult("座標変換行列は4つ必要です")
+        }
+        
         // ここで座標変換行列を計算する処理を追加
         let affineMatrix = calculateTransformationMatrix(A: A, B: B)
         coordinateTransformEntity.affineMatrixAtoB = affineMatrix.tosimd_float4x4()
