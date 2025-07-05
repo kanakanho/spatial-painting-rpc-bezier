@@ -46,13 +46,6 @@ extension simd_float4 {
 }
 
 extension SIMD4 {
-    init(_ float3: SIMD3<Scalar>) {
-        self.init()
-        x = float3.x
-        y = float3.y
-        z = float3.z
-    }
-    
     var xyz: SIMD3<Scalar> {
         self[SIMD3(0, 1, 2)]
     }

@@ -66,6 +66,11 @@ class PeerManager: NSObject {
         browser.startBrowsingForPeers()
     }
     
+    func stop() {
+        advertiser.stopAdvertisingPeer()
+        browser.stopBrowsingForPeers()
+    }
+    
     func firstSendMessage() {
         sendMessageForAll("Hello")
     }

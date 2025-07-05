@@ -14,6 +14,8 @@ class PaintingCanvas {
     let root = Entity()
     var strokes: [Stroke] = []
     
+    var eraserEntity: Entity = Entity()
+    
     /// The stroke that a person creates.
     var currentStroke: Stroke?
     
@@ -59,8 +61,13 @@ class PaintingCanvas {
         activeColor = color
     }
     
+    /// Set the eraser entity that will be used to erase strokes.
+    func setEraserEntity(_ entity: Entity) {
+        eraserEntity = entity
+    }
+    
     /// Generate a point when the user uses the drag gesture.
-    func addPoint(_ position: SIMD3<Float>) {
+    func addPoint(_ uuid: UUID, _ position: SIMD3<Float>) {
         if isFirstStroke {
             isFirstStroke = false
             return
@@ -69,7 +76,7 @@ class PaintingCanvas {
         /// currentPosition との距離が一定以上離れている場合は早期リターンする
         let distance = length(position - currentPosition)
         currentPosition = position
-        print("distance: \(distance)")
+        // print("distance: \(distance)")
         if distance > 0.1 {
             print("distance is too far, return")
             currentStroke = nil
@@ -81,7 +88,7 @@ class PaintingCanvas {
         
         // Start a new stroke if no stroke exists.
         if currentStroke == nil {
-            currentStroke = Stroke()
+            currentStroke = Stroke(uuid: uuid)
             currentStroke!.setActiveColor(color: activeColor)
             strokes.append(currentStroke!)
             
@@ -101,15 +108,66 @@ class PaintingCanvas {
         currentStroke?.updateMesh()
     }
     
+    
     /// Clear the stroke when the drag gesture ends.
     func finishStroke() {
         if let stroke = currentStroke {
             // Trigger the update mesh operation.
             stroke.updateMesh()
             
+            var count = 0
+            for point in stroke.points {
+                if count % 5 == 0 {
+                    let entity = eraserEntity.clone(recursive: true)
+                    entity.name = "eraser"
+                    let material = SimpleMaterial(color: UIColor(white: 1.0, alpha: 0.0), isMetallic: false)
+                    entity.components.set(ModelComponent(mesh: .generateSphere(radius: 0.01), materials: [material]))
+                    entity.components.set(StrokeComponent(stroke.uuid))
+                    entity.setScale([0.0025, 0.0025, 0.0025], relativeTo: nil)
+                    entity.position = point
+                    //entity.position = .zero
+                    //stroke.entity.addChild(entity)
+                    root.addChild(entity)
+                    // print("Added eraser entity at point: \(point)")
+                }
+                count += 1
+            }
+            
             // Clear the current stroke.
             currentStroke = nil
             isFirstStroke = true
+        }
+    }
+    
+    /// Strokeを直接追加する
+    func addStrokes(_ strokes: [Stroke]) {
+        for stroke in strokes {
+            addStroke(stroke)
+        }
+    }
+    
+    /// Stroke構造体を利用して追加する
+    func addStroke(_ stroke: Stroke) {
+        let newStroke = Stroke(uuid: stroke.uuid)
+        newStroke.setActiveColor(color: stroke.activeColor)
+        newStroke.points = stroke.points
+        newStroke.updateMesh()
+        self.strokes.append(newStroke)
+        root.addChild(newStroke.entity)
+        
+        var count = 0
+        for point in stroke.points {
+            if count % 5 == 0 {
+                let entity = eraserEntity.clone(recursive: true)
+                entity.name = "eraser"
+                let material = SimpleMaterial(color: UIColor(white: 1.0, alpha: 0.0), isMetallic: false)
+                entity.components.set(ModelComponent(mesh: .generateSphere(radius: 0.01), materials: [material]))
+                entity.components.set(StrokeComponent(stroke.uuid))
+                entity.setScale([0.0025, 0.0025, 0.0025], relativeTo: nil)
+                entity.position = point
+                root.addChild(entity)
+            }
+            count += 1
         }
     }
 }

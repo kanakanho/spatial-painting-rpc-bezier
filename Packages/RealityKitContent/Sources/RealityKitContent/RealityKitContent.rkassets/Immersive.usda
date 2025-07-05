@@ -7,10 +7,11 @@
 
 def Xform "Root"
 {
+    reorder nameChildren = ["button", "collider", "white", "black", "red", "yellow", "green", "cyan", "blue", "magenta", "clear", "brown", "orange"]
     def "white" (
         active = true
         prepend apiSchemas = ["MaterialBindingAPI"]
-        prepend references = @white.usdz@
+        references = @white.usdz@
     )
     {
         rel material:binding = </Root/white/Materials/mat1> (
@@ -70,7 +71,7 @@ def Xform "Root"
     def "black" (
         active = true
         prepend apiSchemas = ["MaterialBindingAPI"]
-        prepend references = @black.usdz@
+        references = @black.usdz@
     )
     {
         rel material:binding = </Root/white/Materials/mat1> (
@@ -130,7 +131,7 @@ def Xform "Root"
     def "red" (
         active = true
         prepend apiSchemas = ["MaterialBindingAPI"]
-        prepend references = @red.usdz@
+        references = @red.usdz@
     )
     {
         rel material:binding = </Root/white/Materials/mat1> (
@@ -184,7 +185,7 @@ def Xform "Root"
     def "yellow" (
         active = true
         prepend apiSchemas = ["MaterialBindingAPI"]
-        prepend references = @yellow.usdz@
+        references = @yellow.usdz@
     )
     {
         rel material:binding = </Root/white/Materials/mat1> (
@@ -238,7 +239,7 @@ def Xform "Root"
     def "green" (
         active = true
         prepend apiSchemas = ["MaterialBindingAPI"]
-        prepend references = @green.usdz@
+        references = @green.usdz@
     )
     {
         rel material:binding = </Root/white/Materials/mat1> (
@@ -292,7 +293,7 @@ def Xform "Root"
     def "cyan" (
         active = true
         prepend apiSchemas = ["MaterialBindingAPI"]
-        prepend references = @cyan.usdz@
+        references = @cyan.usdz@
     )
     {
         rel material:binding = </Root/white/Materials/mat1> (
@@ -346,7 +347,7 @@ def Xform "Root"
     def "blue" (
         active = true
         prepend apiSchemas = ["MaterialBindingAPI"]
-        prepend references = @blue.usdz@
+        references = @blue.usdz@
     )
     {
         rel material:binding = </Root/white/Materials/mat1> (
@@ -400,7 +401,7 @@ def Xform "Root"
     def "magenta" (
         active = true
         prepend apiSchemas = ["MaterialBindingAPI"]
-        prepend references = @magenta.usdz@
+        references = @magenta.usdz@
     )
     {
         rel material:binding = </Root/white/Materials/mat1> (
@@ -454,7 +455,7 @@ def Xform "Root"
     def "clear" (
         active = true
         prepend apiSchemas = ["MaterialBindingAPI"]
-        prepend references = @clear.usdz@
+        references = @clear.usdz@
     )
     {
         rel material:binding = </Root/white/Materials/mat1> (
@@ -473,7 +474,8 @@ def Xform "Root"
 
                 over "mat1PreviewSurface"
                 {
-                    float inputs:opacity = 0.6
+                    float inputs:opacity = 0.3
+                    float inputs:roughness = 0
                 }
             }
         }
@@ -505,7 +507,7 @@ def Xform "Root"
     def "brown" (
         active = true
         prepend apiSchemas = ["MaterialBindingAPI"]
-        prepend references = @brown.usdz@
+        references = @brown.usdz@
     )
     {
         rel material:binding = </Root/white/Materials/mat1> (
@@ -559,9 +561,10 @@ def Xform "Root"
     def "orange" (
         active = true
         prepend apiSchemas = ["MaterialBindingAPI"]
-        prepend references = @orange.usdz@
+        references = @orange.usdz@
     )
     {
+        reorder nameChildren = ["Materials", "orange", "InputTarget", "Collider", "collider"]
         rel material:binding = </Root/white/Materials/mat1> (
             bindMaterialAs = "weakerThanDescendants"
         )
@@ -605,6 +608,142 @@ def Xform "Root"
                         colorSpace = "srgb_displayp3"
                     )
                     float inputs:metallic = 1
+                }
+            }
+        }
+
+        over "orange"
+        {
+            reorder nameChildren = ["collider", "orange_geometry"]
+        }
+    }
+
+    def "collider" (
+        active = true
+        prepend apiSchemas = ["MaterialBindingAPI"]
+        references = @collider.usdz@
+    )
+    {
+        rel material:binding = </Root/collider/Materials/mat1> (
+            bindMaterialAs = "weakerThanDescendants"
+        )
+        quatf xformOp:orient = (1, 0, 0, 0)
+        float3 xformOp:scale = (0.004, 0.004, 0.004)
+        float3 xformOp:translate = (0, 0.8999998, -0.7)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+        over "Materials"
+        {
+            over "mat1"
+            {
+                token outputs:mtlx:surface.connect = </Root/collider/Materials/mat1/PreviewSurface.outputs:out>
+                token outputs:realitykit:vertex
+                token outputs:surface.connect = </Root/collider/Materials/mat1/mat1PreviewSurface.outputs:surface>
+                float2 ui:nodegraph:realitykit:subgraphOutputs:pos = (0, 110.5)
+
+                over "mat1PreviewSurface" (
+                    active = true
+                )
+                {
+                    float inputs:clearcoat = 0
+                    float inputs:clearcoatRoughness = 0
+                    color3f inputs:diffuseColor = (0.9192661, 0.94470847, 0.9426621) (
+                        colorSpace = "srgb_displayp3"
+                    )
+                    color3f inputs:emissiveColor = (0, 0, 0) (
+                        colorSpace = "srgb_displayp3"
+                    )
+                    float inputs:occlusion = 0.6
+                    float inputs:opacity = 0
+                    float inputs:opacityThreshold
+                    float inputs:roughness = 1
+                }
+
+                def Shader "PreviewSurface" (
+                    active = false
+                )
+                {
+                    uniform token info:id = "ND_UsdPreviewSurface_surfaceshader"
+                    token outputs:out
+                    float2 ui:nodegraph:node:pos = (-255, 105)
+                }
+            }
+        }
+
+        def RealityKitComponent "InputTarget"
+        {
+            uniform token info:id = "RealityKit.InputTarget"
+        }
+
+        def RealityKitComponent "Collider"
+        {
+            uint group = 1
+            uniform token info:id = "RealityKit.Collider"
+            uint mask = 4294967295
+            token type = "Default"
+
+            def RealityKitStruct "Shape"
+            {
+                float3 extent = (10, 10, 10)
+                token shapeType = "Box"
+
+                def RealityKitStruct "pose"
+                {
+                }
+            }
+        }
+    }
+
+    def "button" (
+        active = true
+        prepend apiSchemas = ["MaterialBindingAPI"]
+        prepend references = @button.usdz@
+    )
+    {
+        rel material:binding = </Root/button/Materials/mat1> (
+            bindMaterialAs = "weakerThanDescendants"
+        )
+        float3 xformOp:scale = (0.004, 0.004, 0.004)
+        float3 xformOp:translate = (0, 0.9, -0.6)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+        over "Materials"
+        {
+            over "mat1"
+            {
+                token outputs:mtlx:surface
+                token outputs:realitykit:vertex
+
+                over "mat1PreviewSurface"
+                {
+                    color3f inputs:diffuseColor = (0.7104854, 1, 0.75313324) (
+                        colorSpace = "srgb_displayp3"
+                    )
+                    float inputs:metallic = 0
+                    float inputs:roughness = 1
+                }
+            }
+        }
+
+        def RealityKitComponent "InputTarget"
+        {
+            uniform token info:id = "RealityKit.InputTarget"
+        }
+
+        def RealityKitComponent "Collider"
+        {
+            uint group = 1
+            uniform token info:id = "RealityKit.Collider"
+            uint mask = 4294967295
+            token type = "Default"
+
+            def RealityKitStruct "Shape"
+            {
+                float3 extent = (10, 5, 10)
+                token shapeType = "Box"
+
+                def RealityKitStruct "pose"
+                {
                 }
             }
         }

@@ -25,6 +25,7 @@ class AppModel: ObservableObject {
     @ObservedObject var mcPeerIDUUIDWrapper = MCPeerIDUUIDWrapper()
     @ObservedObject var rpcModel: RPCModel
     var peerManager: PeerManager
+    var externalStrokeFileWapper: ExternalStrokeFileWapper = ExternalStrokeFileWapper()
     
     init() {
         let sendExchangeDataWrapper = ExchangeDataWrapper()

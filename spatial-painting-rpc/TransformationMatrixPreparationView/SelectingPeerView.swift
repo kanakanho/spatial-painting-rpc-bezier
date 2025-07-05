@@ -23,7 +23,7 @@ struct SelectingPeerView: View {
             Picker("", selection: $peerIDHash) {
                 Text("選ぶ").tag(nil as Int?)
                 ForEach(rpcModel.mcPeerIDUUIDWrapper.standby, id: \.hash) { peerId in
-                    Text(String(peerId.hash)).tag(peerId.hash)
+                    Text(String(peerId.displayName)).tag(peerId.hash)
                 }
             }
             Spacer()
@@ -66,14 +66,6 @@ struct SelectingPeerView: View {
     }
     
     private func returnToInitial() {
-        let rpcResult = rpcModel.sendRequest(RequestSchema(
-            peerId: rpcModel.mcPeerIDUUIDWrapper.mine.hash,
-            method: .resetPeer,
-            param: .resetPeer(.init())
-        )
-        )
-        if !rpcResult.success {
-            errorMessage = rpcResult.errorMessage
-        }
+        _ = rpcModel.coordinateTransforms.resetPeer(param: .init())
     }
 }

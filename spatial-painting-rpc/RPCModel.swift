@@ -6,7 +6,6 @@
 //
 
 import Foundation
-//import SwiftUI
 import simd
 import MultipeerConnectivity
 import Combine
@@ -225,10 +224,12 @@ class RPCModel: ObservableObject {
             painting.finishStroke()
         case let
             (.paintingEntity(.setStrokeColor),.paintingEntity(.setStrokeColor(p))):
-                painting.setStrokeColor(param: p)
-        case
-            (.paintingEntity(.removeStroke),.paintingEntity(.removeStroke(_))):
-                painting.removeStroke()
+            painting.setStrokeColor(param: p)
+        case (.paintingEntity(.removeAllStroke),.paintingEntity(.removeAllStroke(_))):
+            painting.removeAllStroke()
+        case let
+            (.paintingEntity(.removeStroke),.paintingEntity(.removeStroke(p))):
+            painting.removeStroke(param: p)
         default:
             return RPCResult("Invalid request")
         }
@@ -264,12 +265,15 @@ class RPCModel: ObservableObject {
         case let (.coordinateTransformEntity(.setNewUserAffineMatrix), .coordinateTransformEntity(.setNewUserAffineMatrix(p))):
             // 自身に対して追加操作を行わない
             break
-        case let (.paintingEntity(.addStrokePoint),.paintingEntity(.addStrokePoint(p))):
+        case (.paintingEntity(.addStrokePoint),.paintingEntity(.addStrokePoint(_))):
+            // 自身に対して追加操作を行わない
+            break
+        case (.paintingEntity(.addStrokes),.paintingEntity(.addStrokes(_))):
             // 自身に対して追加操作を行わない
             break
         case let
             (.paintingEntity(.setStrokeColor),.paintingEntity(.setStrokeColor(p))):
-                painting.setStrokeColor(param: p)
+            painting.setStrokeColor(param: p)
         default:
             return RPCResult("Invalid request")
         }
@@ -303,12 +307,16 @@ class RPCModel: ObservableObject {
             painting.addStrokePoint(param: p)
         case  (.paintingEntity(.finishStroke),.paintingEntity(.finishStroke(_))):
             painting.finishStroke()
+        case let (.paintingEntity(.addStrokes),.paintingEntity(.addStrokes(p))):
+            painting.addStrokes(param: p)
         case let
             (.paintingEntity(.setStrokeColor),.paintingEntity(.setStrokeColor(p))):
-                painting.setStrokeColor(param: p)
-        case 
-            (.paintingEntity(.removeStroke),.paintingEntity(.removeStroke(_))):
-                painting.removeStroke()
+            painting.setStrokeColor(param: p)
+        case (.paintingEntity(.removeAllStroke),.paintingEntity(.removeAllStroke(_))):
+            painting.removeAllStroke()
+        case let
+            (.paintingEntity(.removeStroke),.paintingEntity(.removeStroke(p))):
+            painting.removeStroke(param: p)
         default:
             return RPCResult("Invalid request")
         }
