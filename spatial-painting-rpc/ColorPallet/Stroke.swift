@@ -21,7 +21,7 @@ struct StrokeComponent: Component {
 class Stroke {
     var uuid: UUID
     
-    var activeColor:SimpleMaterial.Color = SimpleMaterial.Color.white
+    var activeColor: SimpleMaterial.Color = SimpleMaterial.Color.red
     
     func setActiveColor(color: SimpleMaterial.Color) {
         activeColor = color
@@ -34,14 +34,35 @@ class Stroke {
     var points: [SIMD3<Float>] = []
     
     /// The maximum radius of the stroke.
-    let maxRadius: Float = 1E-2
+    var maxRadius: Float = 1E-2
+    
+    func setMaxRadius(radius: Float) {
+        maxRadius = radius
+    }
+    
+    /// 元の maxRadius を保持するプロパティを追加（初期値 1E-2）
+    var originalMaxRadius: Float {
+        return 1E-2
+    }
     
     /// The number of points in each ring of the mesh.
     let pointsPerRing = 8
     
-    init(uuid: UUID) {
+    init(uuid: UUID, originalMaxRadius: Float = 1E-2) {
         self.uuid = uuid
+        self.maxRadius = originalMaxRadius
         entity.components.set(StrokeComponent(uuid))
+    }
+    
+    //修正 by nagao 2025/7/15
+    func updateMaxRadiusAndRemesh(scaleFactor: Float) {
+        //self.maxRadius = self.originalMaxRadius * scaleFactor
+        let scaled = self.originalMaxRadius * scaleFactor
+        let radiusCap: Float   = 3.0 * self.originalMaxRadius // 上限
+        let radiusFloor: Float = 0.3 * self.originalMaxRadius // 下限
+        self.maxRadius = min(max(scaled, radiusFloor), radiusCap)
+        //print("Stroke maxRadius: \(self.maxRadius)")
+        self.updateMesh()
     }
     
     /// Update the mesh with the points of the stroke if it already exists,

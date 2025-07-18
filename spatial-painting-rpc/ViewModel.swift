@@ -12,7 +12,7 @@ import SwiftUI
 @Observable
 @MainActor
 class ViewModel {
-    var colorPalletModel: ColorPalletModel = ColorPalletModel()
+    var colorPalletModel: AdvancedColorPalletModel = AdvancedColorPalletModel()
     
     var session = ARKitSession()
     var handTracking = HandTrackingProvider()
@@ -30,6 +30,23 @@ class ViewModel {
     var latestLeftIndexFingerCoordinates: simd_float4x4 = .init()
     
     var latestWorldTracking: WorldAnchor = .init(originFromAnchorTransform: .init())
+    
+    var isGlab: Bool = false
+    
+    var isHandGripped: Bool = false
+    
+    enum OperationLock {
+        case none
+        case right
+        case left
+    }
+    
+    enum HandGlab {
+        case right
+        case left
+    }
+    
+    var entitiyOperationLock = OperationLock.none
     
     // ここで反発係数を決定している可能性あり
     let material = PhysicsMaterialResource.generate(friction: 0.8,restitution: 0.0)
@@ -52,13 +69,17 @@ class ViewModel {
     
     var handArrowEntities: [Entity] = []
     
+    var buttonEntity: Entity = Entity()
+        
+    var buttonEntity2: Entity = Entity()
+    
     var axisVectors: [SIMD3<Float>] = [SIMD3<Float>(0,0,0), SIMD3<Float>(0,0,0), SIMD3<Float>(0,0,0)]
     
     var normalVector: SIMD3<Float> = SIMD3<Float>(0,0,0)
     
-    var buttonEntity: Entity?
-    
     var planeNormalVector: SIMD3<Float> = SIMD3<Float>(0,0,0)
+    
+    var unitVector: SIMD3<Float> = SIMD3<Float>(0,0,0)
     
     var planePoint: SIMD3<Float> = SIMD3<Float>(0,0,0)
     
@@ -68,6 +89,10 @@ class ViewModel {
     
     func setButtonEntity(_ entity: Entity) {
         self.buttonEntity = entity
+    }
+    
+    func setButtonEntity2(_ entity: Entity) {
+        self.buttonEntity2 = entity
     }
     
     func showHandArrowEntities() {
@@ -105,13 +130,11 @@ class ViewModel {
         handSphereEntity = nil
         colorPalletModel.colorPalletEntityDisable()
         
-        buttonEntity!.removeFromParent()
+        buttonEntity.removeFromParent()
+        buttonEntity2.removeFromParent()
     }
     
-    var fingerEntities: [HandAnchor.Chirality: ModelEntity] = [
-        //        .left: .createFingertip(name: "L", color: UIColor(red: 220/255, green: 220/255, blue: 220/255, alpha: 1.0)),
-        .right: .createFingertip(name: "R", color: UIColor(red: 220/255, green: 220/255, blue: 220/255, alpha: 1.0))
-    ]
+    let fingerEntities: [HandAnchor.Chirality: ModelEntity] = [/*.left: .createFingertip(name: "L", color: UIColor(red: 220/255, green: 220/255, blue: 220/255, alpha: 1.0)),*/ .right: .createFingertip(name: "R", color: UIColor(red: 220/255, green: 220/255, blue: 220/255, alpha: 1.0))]
     
     func setupContentEntity() -> Entity {
         for entity in fingerEntities.values {
@@ -160,6 +183,94 @@ class ViewModel {
             self.fingerEntities[hand]?.components.set(ModelComponent(mesh: .generateSphere(radius: 0.01), materials: [material]))
         }
     }
+    
+    // modified by nagao 2025/7/17
+    func changeFingerColor(entity: Entity, colorName: String) {
+        //print("Finger color changed to: \(colorName)")
+        if colorPalletModel.selectedBasicColorName == colorName {
+            return
+        }
+        let colorBall = colorPalletModel.colorBalls.get(withID: colorName)
+        if colorBall == nil {
+            return
+        }
+        let prev = colorPalletModel.selectedBasicColorName
+        if prev != "" {
+            if colorBall!.isBasic || colorName.hasPrefix("m") {
+                if let prevEntity = colorPalletModel.colorEntityDictionary[prev] {
+                    prevEntity.setScale(SIMD3<Float>(repeating: 0.01), relativeTo: nil)
+                    let colorBall2 = colorPalletModel.colorBalls.get(withID: prev)
+                    if colorBall2 != nil {
+                        //print("Unselected color ball: \(colorBall2!.id)")
+                        let subColorBalls = colorPalletModel.colorBalls.filterByID(containing: String(prev.prefix(1)), isBasic: false)
+                        for cb in subColorBalls {
+                            if let entity2: Entity = colorPalletModel.colorEntityDictionary[cb.id] {
+                                entity2.removeFromParent()
+                            }
+                        }
+                    }
+                }
+                colorPalletModel.selectedBasicColorName = ""
+            }
+        }
+        if let color: UIColor = colorPalletModel.colorDictionary[colorName] {
+            let material = SimpleMaterial(color: color, isMetallic: false)
+            entity.components.set(ModelComponent(mesh: .generateSphere(radius: 0.01), materials: [material]))
+            if let colorEntity = colorPalletModel.colorEntityDictionary[colorName] {
+                if colorBall!.isBasic {
+                    colorEntity.setScale(SIMD3<Float>(repeating: 0.013), relativeTo: nil)
+                    let subColorBalls = colorPalletModel.colorBalls.filterByID(containing: String(colorName.prefix(1)), isBasic: false)
+                    for cb in subColorBalls {
+                        if let entity2: Entity = colorPalletModel.colorEntityDictionary[cb.id] {
+                            colorPalletModel.colorPalletEntity.addChild(entity2)
+                        }
+                    }
+                    colorPalletModel.selectedBasicColorName = colorName
+                }
+                //print("Selected color ball: \(colorBall!.id)  \(colorBall!.hue)  \(colorBall!.brightness)  \(colorBall!.isSelected)")
+            }
+        }
+    }
+
+    // added by nagao 2025/7/17
+    func resetColor() {
+        if colorPalletModel.selectedBasicColorName == "" {
+            return
+        }
+        let prev = colorPalletModel.selectedBasicColorName
+        if prev != "" {
+            if let prevEntity = colorPalletModel.colorEntityDictionary[prev] {
+                prevEntity.setScale(SIMD3<Float>(repeating: 0.01), relativeTo: nil)
+                let colorBall2 = colorPalletModel.colorBalls.get(withID: prev)
+                if colorBall2 != nil {
+                    //print("Unselected color ball: \(colorBall2!.id)")
+                    let subColorBalls = colorPalletModel.colorBalls.filterByID(containing: String(prev.prefix(1)), isBasic: false)
+                    for cb in subColorBalls {
+                        if let entity: Entity = colorPalletModel.colorEntityDictionary[cb.id] {
+                            entity.removeFromParent()
+                        }
+                    }
+                }
+            }
+        }
+        colorPalletModel.selectedBasicColorName = ""
+    }
+
+    // added by nagao 2025/7/17
+    func changeFingerLineWidth(entity: Entity, toolName: String, activeColor: UIColor) {
+        //print("Finger line width changed to: \(toolName)")
+        if colorPalletModel.selectedToolName == toolName {
+            return
+        }
+        let toolBall = colorPalletModel.toolBalls.get(withID: toolName)
+        if toolBall != nil {
+            let material = SimpleMaterial(color: activeColor, isMetallic: false)
+            entity.components.set(ModelComponent(mesh: .generateSphere(radius: Float(toolBall!.lineWidth)), materials: [material]))
+            //print("Selected tool ball: \(toolBall!.id)  \(toolBall!.lineWidth)  \(toolBall!.isSelected)")
+        }
+        colorPalletModel.selectedToolName = toolName
+    }
+
     
     func processReconstructionUpdates() async {
         for await update in sceneReconstruction.anchorUpdates {
@@ -270,7 +381,8 @@ class ViewModel {
               let rightWristBase = rightHandAnchor.handSkeleton?.joint(.wrist)
         else { return }
         
-        guard let button = buttonEntity else { return }
+        let button = buttonEntity
+        let button2 = buttonEntity2
         
         let middle: simd_float4x4 = handAnchor.originFromAnchorTransform * middleBase.anchorFromJointTransform
         let little: simd_float4x4 = handAnchor.originFromAnchorTransform * littleBase.anchorFromJointTransform
@@ -297,6 +409,13 @@ class ViewModel {
         let threshold = handSize * 0.5 // 手のサイズに基づいた閾値を計算
         let flag = distances.allSatisfy { $0 > threshold }
         
+        let distances2 = [
+            distance(middlePos, thumbPos),
+            distance(middlePos, littlePos),
+            distance(thumbPos, littlePos),
+        ]
+        isHandGripped = distances2.allSatisfy { $0 < threshold }
+        
         if !flag {
             if isArrowShown && handSphereEntity != nil {
                 handSphereEntity!.removeFromParent()
@@ -322,10 +441,15 @@ class ViewModel {
         let worldUp = simd_float3(0, 1, 0)
         let dot = simd_dot(normalVector, worldUp)
         if dot > senseThreshold {
-            button.setPosition(calculateExtendedPoint(point: planePoint, vector: normalVector, distance: 0.07), relativeTo: nil)
+            let point = calculateExtendedPoint(point: planePoint, vector: normalVector, distance: 0.07)
+            button.setPosition(point, relativeTo: nil)
             contentEntity.addChild(button)
+            let point2 = calculateExtendedPoint(point: point, vector: planeNormalVector, distance: 0.05)
+            button2.setPosition(point2, relativeTo: nil)
+            contentEntity.addChild(button2)
         } else {
             button.removeFromParent()
+            button2.removeFromParent()
         }
         
         // ワールドの下方向ベクトル
@@ -350,7 +474,9 @@ class ViewModel {
             colorPalletModel.colorPalletEntityEnabled()
         }
         
-        colorPalletModel.updatePosition(position: positionMatrix.position, wristPosition: wristPos)
+//        colorPalletModel.updatePosition(position: positionMatrix.position, wristPosition: wristPos)
+        colorPalletModel.updatePosition2(position: positionMatrix.position, unitVector: unitVector)
+
     }
     
     func createHandSphere(wrist: SIMD3<Float>, middle: SIMD3<Float>, little: SIMD3<Float>, isArrowShown: Bool) {
@@ -381,6 +507,8 @@ class ViewModel {
         normalVector = axisVectors[2]
         
         planeNormalVector = axisVectors[0]
+        
+        unitVector = axisVectors[1]
         
         planePoint = center
         
@@ -448,7 +576,7 @@ class ViewModel {
         
         normalVector = currentNormalVector
         
-        planeNormalVector = currentAxisVector
+        unitVector = currentLittleVector
         
         planePoint = center
         
@@ -514,18 +642,6 @@ class ViewModel {
         } else {
             // AとBが同じ方向を向いている場合、単位クォータニオンを返す
             return simd_quatf(angle: 0, axis: simd_float3(0, 1, 0))  // 回転不要
-        }
-    }
-    
-    func changeFingerColor(entity: Entity, colorName: String) {
-        let colors = colorPalletModel.colors
-        for color in colors {
-            let words = color.accessibilityName.split(separator: " ")
-            if let name = words.last, name == colorName {
-                let material = SimpleMaterial(color: color, isMetallic: true)
-                entity.components.set(ModelComponent(mesh: .generateSphere(radius: 0.01), materials: [material]))
-                break
-            }
         }
     }
     
@@ -630,7 +746,7 @@ class ViewModel {
         initBallEntity.addChild(xStroke)
     }
     
-    func initColorPalletNodel(colorPalletModel: ColorPalletModel) {
+    func initColorPalletNodel(colorPalletModel: AdvancedColorPalletModel) {
         print("initColorPalletNodel")
         self.colorPalletModel = colorPalletModel
     }
