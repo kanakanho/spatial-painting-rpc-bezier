@@ -96,7 +96,7 @@ struct ExternalStrokeView: View {
                                 let transformedPoints = externalStroke.points.map { point in
                                     return SIMD3<Float>(affineMatrix * SIMD4<Float>(point.x, point.y, point.z, 1.0))
                                 }
-                                return ExternalStroke(uuid: externalStroke.uuid, points: transformedPoints, cgColor: externalStroke.color)
+                                return ExternalStroke(points: transformedPoints, color: externalStroke.color, maxRadius: externalStroke.maxRadius)
                             })
                             _ = appModel.rpcModel.sendRequest(
                                 .init(
