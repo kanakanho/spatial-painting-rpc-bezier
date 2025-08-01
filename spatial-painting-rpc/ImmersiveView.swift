@@ -71,8 +71,12 @@ struct ImmersiveView: View {
                                     param: .changeFingerLineWidth(.init(toolName: collisionEvent.entityB.name))
                                 )
                             )
-                            let material: SimpleMaterial = SimpleMaterial(color: appModel.rpcModel.painting.paintingCanvas.activeColor, isMetallic: false)
-                            fingerEntity.components.set(ModelComponent(mesh: .generateSphere(radius: 0.01), materials: [material]))
+                            
+                            let toolBall = appModel.rpcModel.painting.advancedColorPalletModel.toolBalls.get(withID: collisionEvent.entityB.name)
+                            if toolBall != nil {
+                                let material: SimpleMaterial = SimpleMaterial(color: appModel.rpcModel.painting.paintingCanvas.activeColor, isMetallic: false)
+                                fingerEntity.components.set(ModelComponent(mesh: .generateSphere(radius: Float(toolBall!.lineWidth)), materials: [material]))
+                            }
                             appModel.model.isEraserMode = false
                         } else if collisionEvent.entityB.name == "eraser" {
                             let material: SimpleMaterial = SimpleMaterial(color: UIColor(red: 220/255, green: 220/255, blue: 220/255, alpha: 0.2), isMetallic: true)
@@ -108,6 +112,11 @@ struct ImmersiveView: View {
                                     param: .setStrokeColor(.init(strokeColorName: collisionEvent.entityB.name))
                                 )
                             )
+                            if let color: UIColor =
+                                appModel.rpcModel.painting.advancedColorPalletModel.colorDictionary[collisionEvent.entityB.name] {
+                                let material = SimpleMaterial(color: color, isMetallic: false)
+                                fingerEntity.components.set(ModelComponent(mesh: .generateSphere(radius: 0.01), materials: [material]))
+                            }
                         } else if collisionEvent.entityB.name == "button" {
                             if appModel.model.recordTime(isBegan: false) {
                                 let externalStrokes: [ExternalStroke] = .init(strokes: appModel.rpcModel.painting.paintingCanvas.strokes, initPoint: .one)
@@ -259,7 +268,6 @@ struct ImmersiveView: View {
                                     let rotationX = Float(translation.x / 1000.0) * .pi
                                     let rotationY = Float(translation.y / 1000.0) * .pi
                                     
-                                    //print("rotationX = \(rotationX), rotationY = \(rotationY)")
                                     value.entity.transform.rotation = sourceTransform!.rotation * simd_quatf(angle: rotationX, axis: [0, 1, 0]) * simd_quatf(angle: rotationY, axis: [1, 0, 0])
                                 }
                             } else if let magnification = value.second?.magnification {
@@ -315,6 +323,8 @@ struct ImmersiveView: View {
                             )
                         )
                     }
+                    
+                    sourceTransform = nil
                 })
         )
         .onChange(of: appModel.rpcModel.coordinateTransforms.affineMatrixs) {

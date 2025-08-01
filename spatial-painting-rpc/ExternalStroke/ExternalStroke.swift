@@ -21,6 +21,13 @@ extension [ExternalStroke] {
             $0.stroke(initPoint: initPoint)
         }
     }
+    
+    // pointを変更しない
+    func strokes() -> [Stroke] {
+        return self.map {
+            $0.stroke()
+        }
+    }
 }
 
 struct ExternalStroke: Codable {
@@ -44,12 +51,20 @@ struct ExternalStroke: Codable {
         // initPointからの相対位置に変換
         self.points = stroke.points.map { $0 - initPoint }
         self.color = stroke.activeColor
-        self.maxRadius = stroke.maxRadius
+        self.maxRadius = stroke.maxRadius //修正 by nagao 2025/7/15
     }
     
-    public init(points: [SIMD3<Float>] = [], color: SimpleMaterial.Color = .white, initPoint: SIMD3<Float> = .zero, maxRadius: Float = 1E-2) {
+    public init(points: [SIMD3<Float>] = [], color: SimpleMaterial.Color = .white, initPoint: SIMD3<Float>, maxRadius: Float = 1E-2) {
         // initPointからの相対位置に変換
         self.points = points.map { $0 - initPoint }
+        self.color = color
+        self.maxRadius = maxRadius
+    }
+    
+    // pointを変更しない
+    public init(points: [SIMD3<Float>] = [], color: SimpleMaterial.Color = .white, maxRadius: Float = 1E-2) {
+        // initPointからの相対位置に変換
+        self.points = points
         self.color = color
         self.maxRadius = maxRadius
     }
@@ -64,14 +79,14 @@ struct ExternalStroke: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let pointArrays = try container.decode([[Float]].self, forKey: .points)
         self.points = pointArrays.map { SIMD3<Float>($0) }
-
+        
         // maxRadius の有無を確認
         let hasMaxRadius = container.contains(.maxRadius)
         let colorArray = try container.decode([Float].self, forKey: .color)
         guard colorArray.count == 4 else {
             throw DecodingError.dataCorruptedError(forKey: .color, in: container, debugDescription: "Color array must have 4 elements")
         }
-
+        
         if hasMaxRadius {
             // HSVA（Hue, Saturation, Value, Alpha）
             self.color = .init(hue: CGFloat(colorArray[0]), saturation: CGFloat(colorArray[1]), brightness: CGFloat(colorArray[2]), alpha: CGFloat(colorArray[3]))
@@ -79,10 +94,10 @@ struct ExternalStroke: Codable {
             // RGBA（Red, Green, Blue, Alpha）
             self.color = .init(red: CGFloat(colorArray[0]), green: CGFloat(colorArray[1]), blue: CGFloat(colorArray[2]), alpha: CGFloat(colorArray[3]))
         }
-
+        
         self.maxRadius = try container.decodeIfPresent(Float.self, forKey: .maxRadius) ?? 1E-2
     }
-
+    
     
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
@@ -100,6 +115,15 @@ struct ExternalStroke: Codable {
     func stroke(initPoint: SIMD3<Float> = .zero) -> Stroke {
         let tmpStroke = Stroke(uuid: UUID(), originalMaxRadius: self.maxRadius)
         tmpStroke.points = self.points.map { $0 + initPoint }
+        tmpStroke.setActiveColor(color: self.color)
+        tmpStroke.maxRadius = self.maxRadius
+        return tmpStroke
+    }
+    
+    // pointを変更しない
+    func stroke() -> Stroke {
+        let tmpStroke = Stroke(uuid: UUID(), originalMaxRadius: self.maxRadius)
+        tmpStroke.points = self.points
         tmpStroke.setActiveColor(color: self.color)
         tmpStroke.maxRadius = self.maxRadius
         return tmpStroke
