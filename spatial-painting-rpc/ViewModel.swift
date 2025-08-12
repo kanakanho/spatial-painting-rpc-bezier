@@ -17,7 +17,6 @@ class ViewModel {
     var session = ARKitSession()
     var handTracking = HandTrackingProvider()
     var sceneReconstruction = SceneReconstructionProvider()
-    var worldTracking = WorldTrackingProvider()
     
     private var meshEntities = [UUID: ModelEntity]()
     var contentEntity = Entity()
@@ -28,8 +27,6 @@ class ViewModel {
     
     var latestRightIndexFingerCoordinates: simd_float4x4 = .init()
     var latestLeftIndexFingerCoordinates: simd_float4x4 = .init()
-    
-    var latestWorldTracking: WorldAnchor = .init(originFromAnchorTransform: .init())
     
     var isGlab: Bool = false
     
@@ -55,8 +52,6 @@ class ViewModel {
         var left: HandAnchor?
         var right: HandAnchor?
     }
-    
-    var errorState = false
     
     // ストロークを消去する時の長押し時間 added by nagao 2025/3/24
     var clearTime: Int = 0
@@ -337,40 +332,6 @@ class ViewModel {
             case .removed:
                 meshEntities[meshAnchor.id]?.removeFromParent()
                 meshEntities.removeValue(forKey: meshAnchor.id)
-            }
-        }
-    }
-    
-    func monitorSessionEvents() async {
-        for await event in session.events {
-            switch event {
-            case .authorizationChanged(type: _, status: let status):
-                print("Authorization changed to: \(status)")
-                
-                if status == .denied {
-                    errorState = true
-                }
-            case .dataProviderStateChanged(dataProviders: let providers, newState: let state, error: let error):
-                print("Data provider changed: \(providers), \(state)")
-                if let error {
-                    print("Data provider reached an error state: \(error)")
-                    errorState = true
-                }
-            @unknown default:
-                fatalError("Unhandled new event type \(event)")
-            }
-        }
-    }
-    
-    func processWorldUpdates() async {
-        for await update in worldTracking.anchorUpdates {
-            switch update.event {
-            case .updated:
-                let anchor = update.anchor
-                latestWorldTracking = anchor
-                print(latestWorldTracking.originFromAnchorTransform.position)
-            default:
-                break
             }
         }
     }

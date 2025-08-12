@@ -27,8 +27,10 @@ struct ImmersiveView: View {
     var body: some View {
         RealityView { content in
             do {
+                /// RealityKit content のバンドルを取得
                 let scene: Entity = try await Entity(named: "colorpallet", in: realityKitContentBundle)
                 
+                /// RealityKit のシーンを RealityView に追加
                 if let eraserEntity: Entity = scene.findEntity(named: "collider") {
                     appModel.rpcModel.painting.paintingCanvas.setEraserEntity(eraserEntity)
                 } else {
@@ -43,149 +45,23 @@ struct ImmersiveView: View {
                 
                 appModel.rpcModel.painting.advancedColorPalletModel.setSceneEntity(scene: scene)
                 
+                /// ViewModel の Entity を RealityView に追加
                 let contentEntity: Entity = appModel.model.setupContentEntity()
                 content.add(contentEntity)
                 
+                /// ColorPalletModel の初期化
                 appModel.model.initColorPalletNodel(colorPalletModel: appModel.rpcModel.painting.advancedColorPalletModel)
                 content.add(appModel.rpcModel.painting.advancedColorPalletModel.colorPalletEntity)
                 appModel.rpcModel.painting.advancedColorPalletModel.initEntity()
                 
+                /// お絵描き用の PaintingCanvas の初期化
                 let root: Entity = appModel.rpcModel.painting.paintingCanvas.root
                 content.add(root)
                 
+                /// Collision の設定
                 setupCollisionSubscriptions(on: content)
-                
-                // for fingerEntity in appModel.model.fingerEntities.values {
-                //     _ = content.subscribe(to: CollisionEvents.Began.self, on: fingerEntity, { (collisionEvent: CollisionEvents.Began) in
-                //         if appModel.model.colorPalletModel.colorNames().contains(collisionEvent.entityB.name) {
-                //             appModel.model.changeFingerColor(entity: fingerEntity, colorName: collisionEvent.entityB.name)
-                //             appModel.rpcModel.painting.paintingCanvas.setMaxRadius(radius: 0.01)
-                //             appModel.model.isEraserMode = false
-                //         } else if appModel.model.colorPalletModel.toolNames().contains(collisionEvent.entityB.name) {
-                //             _ = appModel.rpcModel.sendRequest(
-                //                 RequestSchema(
-                //                     peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
-                //                     method: .changeFingerLineWidth,
-                //                     param: .changeFingerLineWidth(.init(toolName: collisionEvent.entityB.name))
-                //                 )
-                //             )
-                
-                //             let toolBall = appModel.rpcModel.painting.advancedColorPalletModel.toolBalls.get(withID: collisionEvent.entityB.name)
-                //             if toolBall != nil {
-                //                 let material: SimpleMaterial = SimpleMaterial(color: appModel.rpcModel.painting.paintingCanvas.activeColor, isMetallic: false)
-                //                 fingerEntity.components.set(ModelComponent(mesh: .generateSphere(radius: Float(toolBall!.lineWidth)), materials: [material]))
-                //             }
-                //             appModel.model.isEraserMode = false
-                //         } else if collisionEvent.entityB.name == "eraser" {
-                //             let material: SimpleMaterial = SimpleMaterial(color: UIColor(red: 220/255, green: 220/255, blue: 220/255, alpha: 0.2), isMetallic: true)
-                //             fingerEntity.components.set(ModelComponent(mesh: .generateSphere(radius: 0.01), materials: [material]))
-                //             appModel.model.resetColor()
-                //             appModel.model.isEraserMode = true
-                //             appModel.model.colorPalletModel.selectedToolName = "eraser"
-                //             _ = appModel.model.recordTime(isBegan: true)
-                //         } else if collisionEvent.entityB.components.contains(where: { (comp: Component) in comp is StrokeComponent }) {
-                //             if !appModel.model.isEraserMode || !appModel.rpcModel.painting.paintingCanvas.tmpStrokes.isEmpty {
-                //                 return
-                //             }
-                //             guard let strokeComponent: StrokeComponent = collisionEvent.entityB.components[StrokeComponent.self] else { return }
-                //             appModel.rpcModel.painting.paintingCanvas.root.children.removeAll {
-                //                 $0.components[StrokeComponent.self]?.uuid == strokeComponent.uuid
-                //             }
-                //             appModel.rpcModel.painting.paintingCanvas.strokes.removeAll {
-                //                 $0.entity.components[StrokeComponent.self]?.uuid == strokeComponent.uuid
-                //             }
-                //         } else if collisionEvent.entityB.name == "button" {
-                //             _ = appModel.model.recordTime(isBegan: true)
-                //         } else if collisionEvent.entityB.name == "button2" {
-                //             _ = appModel.model.recordTime(isBegan: true)
-                //         }
-                //     })
-                
-                //     _ = content.subscribe(to: CollisionEvents.Ended.self, on: fingerEntity, { (collisionEvent: CollisionEvents.Ended) in
-                //         if appModel.rpcModel.painting.advancedColorPalletModel.colorNames().contains(collisionEvent.entityB.name) {
-                //             _ = appModel.rpcModel.sendRequest(
-                //                 RequestSchema(
-                //                     peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
-                //                     method: .setStrokeColor,
-                //                     param: .setStrokeColor(.init(strokeColorName: collisionEvent.entityB.name))
-                //                 )
-                //             )
-                //             if let color: UIColor =
-                //                 appModel.rpcModel.painting.advancedColorPalletModel.colorDictionary[collisionEvent.entityB.name] {
-                //                 let material = SimpleMaterial(color: color, isMetallic: false)
-                //                 fingerEntity.components.set(ModelComponent(mesh: .generateSphere(radius: 0.01), materials: [material]))
-                //             }
-                //         } else if collisionEvent.entityB.name == "button" {
-                //             if appModel.model.recordTime(isBegan: false) {
-                //                 let cleaned = canvas.strokes.removingShortStrokes(minPoints: 3)
-                //                 if cleaned.isEmpty { return }
-                //                 let externalStrokes: [ExternalStroke] = .init(strokes: cleaned, initPoint: .one)
-                //                 appModel.externalStrokeFileWapper.writeStroke(
-                //                     externalStrokes: externalStrokes,
-                //                     displayScale: displayScale,
-                //                     planeNormalVector: appModel.model.planeNormalVector,
-                //                     planePoint: appModel.model.planePoint
-                //                 )
-                //             }
-                //         } else if collisionEvent.entityB.name == "button2" {
-                //             if appModel.model.recordTime(isBegan: false) {
-                //                 if !isFileManagerActive {
-                //                     DispatchQueue.main.async {
-                //                         openWindow(id: "ExternalStroke")
-                //                     }
-                //                 } else {
-                //                     for (id,affineMatrix) in appModel.rpcModel.coordinateTransforms.affineMatrixs {
-                //                         let transformedExternalStrokes: [ExternalStroke] = appModel.rpcModel.painting.paintingCanvas.tmpStrokes.map { (stroke:Stroke) in
-                //                             let transformedPoints: [SIMD3<Float>] = stroke.points.map { (point: SIMD3<Float>) in
-                //                                 let position = SIMD4<Float>(point.x, point.y, point.z, 1.0)
-                //                                 let transformed = affineMatrix * (stroke.entity.transformMatrix(relativeTo: nil) * position)
-                //                                 return SIMD3<Float>(transformed.x, transformed.y, transformed.z)
-                //                             }
-                //                             return ExternalStroke(points: transformedPoints, color: stroke.activeColor)
-                //                         }
-                
-                //                         _ = appModel.rpcModel.sendRequest(
-                //                             RequestSchema(
-                //                                 peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
-                //                                 method: .confirmTmpStrokes,
-                //                                 param: .confirmTmpStrokes(
-                //                                     .init(externalStrokes: transformedExternalStrokes)
-                //                                 )
-                //                             ),
-                //                             mcPeerId: id
-                //                         )
-                //                         DispatchQueue.main.async {
-                //                             dismissWindow(id: "ExternalStroke")
-                //                         }
-                //                     }
-                //                     isFileManagerActive.toggle()
-                //                 }
-                //             }
-                //         } else if collisionEvent.entityB.name == "eraser" {
-                //             if appModel.model.recordTime(isBegan: false) {
-                //                 _ = appModel.rpcModel.sendRequest(
-                //                     RequestSchema(
-                //                         peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
-                //                         method: .removeAllStroke,
-                //                         param: .removeAllStroke(.init())
-                //                     )
-                //                 )
-                //             }
-                //         } else if collisionEvent.entityB.components.contains(where: { (comp: Component) in comp is StrokeComponent }) {
-                //             if !appModel.model.isEraserMode { return }
-                //             guard let strokeComponent: StrokeComponent = collisionEvent.entityB.components[StrokeComponent.self] else { return }
-                //             print("Removing stroke with UUID: \(strokeComponent.uuid)")
-                //             _ = appModel.rpcModel.sendRequest(
-                //                 RequestSchema(
-                //                     peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
-                //                     method: .removeStroke,
-                //                     param: .removeStroke(.init(uuid: strokeComponent.uuid))
-                //                 )
-                //             )
-                //         }
-                //     })
-                // }
-                
+                      
+                /// お絵描き中に移動した場所を記録する
                 root.components.set(ClosureComponent(closure: { (deltaTime: TimeInterval) in
                     var anchors: [HandAnchor] = []
                     
@@ -215,6 +91,7 @@ struct ImmersiveView: View {
                 print("Error in RealityView's make: \(error)")
             }
         }
+        /// ARKitSession の起動
         .task {
             do {
                 try await appModel.model.session.run([appModel.model.sceneReconstruction, appModel.model.handTracking])
@@ -224,18 +101,15 @@ struct ImmersiveView: View {
                 openWindow(id: "error")
             }
         }
+        /// ハンドトラッキングの処理を起動
         .task {
             await appModel.model.processHandUpdates()
         }
+        /// 空間検出の処理を起動
         .task(priority: .low) {
             await appModel.model.processReconstructionUpdates()
         }
-        .task {
-            await appModel.model.monitorSessionEvents()
-        }
-        .task {
-            await appModel.model.processWorldUpdates()
-        }
+        /// 指先の球を表示
         .task {
             appModel.model.showFingerTipSpheres()
         }
