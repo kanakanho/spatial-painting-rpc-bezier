@@ -575,6 +575,8 @@ class ViewModel {
         
         normalVector = currentNormalVector
         
+        planeNormalVector = currentAxisVector
+        
         unitVector = currentLittleVector
         
         planePoint = center
