@@ -292,7 +292,9 @@ extension PaintingCanvas {
                 if count % 5 == 0 {
                     let entity = eraserEntity.clone(recursive: true)
                     entity.name = "clear"
-                    let material = SimpleMaterial(color: UIColor(white: 1.0, alpha: 0.0), isMetallic: false)
+                    // UnlitMaterial で完全透明のマテリアルを作成
+                    var material = UnlitMaterial(color: UIColor(white: 1.0, alpha: 0.0))
+                    material.opacityThreshold = 1.0
                     entity.components.set(ModelComponent(mesh: .generateSphere(radius: 0.01), materials: [material]))
                     entity.components.set(StrokeComponent(stroke.uuid))
                     entity.setScale([0.0025, 0.0025, 0.0025], relativeTo: nil)
