@@ -102,7 +102,7 @@ class Painting:ObservableObject {
     
     /// 複数のストロークを追加する
     func addStrokes(param: AddStrokesParam) {
-        paintingCanvas.addStrokes(param.externalStrokes.strokes())
+        paintingCanvas.addStrokes(param.strokes)
     }
     
     /// 追加したストロークを確定する
@@ -163,7 +163,7 @@ struct PaintingEntity: RPCEntity {
         }
         
         struct AddStrokesParam: Codable {
-            let externalStrokes: [ExternalStroke]
+            let strokes: [Stroke]
         }
         
         struct FinishStrokeParam: Codable {
@@ -174,7 +174,7 @@ struct PaintingEntity: RPCEntity {
         }
         
         struct ConfirmTmpStrokesParam: Codable {
-            let externalStrokes: [ExternalStroke]
+            let strokes: [Stroke]
         }
         
         func encode(to encoder: Encoder) throws {

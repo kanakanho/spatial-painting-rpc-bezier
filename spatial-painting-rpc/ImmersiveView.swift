@@ -98,7 +98,6 @@ struct ImmersiveView: View {
             } catch {
                 print("Failed to start session: \(error)")
                 await dismissImmersiveSpace()
-                openWindow(id: "error")
             }
         }
         /// ハンドトラッキングの処理を起動
@@ -136,6 +135,7 @@ struct ImmersiveView: View {
                     if sourceTransform == nil {
                         sourceTransform = value.entity.transform
                     }
+                    /// 保存したストロークを再度表示させるための処理
                     if !appModel.rpcModel.painting.paintingCanvas.tmpStrokes.isEmpty {
                         if value.entity.name == "boundingBox" {
                             let isHandGripped = appModel.model.isHandGripped
@@ -164,14 +164,15 @@ struct ImmersiveView: View {
                                 value.entity.transform.translation = sourceTransform!.translation + convertedTranslation
                             }
                         }
-                    } else if !appModel.model.isEraserMode,
+                    }
+                    /// ストロークの点の追加
+                    else if !appModel.model.isEraserMode,
                               appModel.rpcModel.coordinateTransforms.coordinateTransformEntity.state == .initial,
                               let pos = lastIndexPose {
                         let uuid: UUID = UUID()
                         appModel.rpcModel.painting.paintingCanvas.addPoint(uuid, pos)
-                        let matrix:[Double] = [pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(), 1]
                         for (id,affineMatrix) in appModel.rpcModel.coordinateTransforms.affineMatrixs {
-                            let clientPos = matmul4x4_4x1(affineMatrix.doubleList, matrix)
+                            let clientPos = matmul4x4_3x1(affineMatrix, pos)
                             _ = appModel.rpcModel.sendRequest(
                                 RequestSchema(
                                     peerId: appModel.rpcModel.mcPeerIDUUIDWrapper.mine.hash,
@@ -179,7 +180,7 @@ struct ImmersiveView: View {
                                     param: .addStrokePoint(
                                         .init(
                                             uuid: uuid,
-                                            point: .init(x: Float(clientPos[0]), y: Float(clientPos[1]), z: Float(clientPos[2]))
+                                            point: clientPos
                                         )
                                     )
                                 ),
@@ -344,9 +345,8 @@ extension ImmersiveView {
             if appModel.model.recordTime(isBegan: false) {
                 let cleaned = appModel.rpcModel.painting.paintingCanvas.strokes.removingShortStrokes(minPoints: 3)
                 if cleaned.isEmpty { return }
-                let externalStrokes: [ExternalStroke] = .init(strokes: cleaned, initPoint: .one)
                 appModel.externalStrokeFileWapper.writeStroke(
-                    externalStrokes: externalStrokes,
+                    strokes: cleaned,
                     displayScale: displayScale,
                     planeNormalVector: appModel.model.planeNormalVector,
                     planePoint: appModel.model.planePoint
@@ -361,7 +361,7 @@ extension ImmersiveView {
             appModel.model.iconEntity3.transform.translation.y -= 0.01
             appModel.model.iconEntity3.transform.translation.z += 0.005
             if appModel.model.recordTime(isBegan: false) {
-                toggleExternalStrokeWindow()
+                toggleStrokeWindow()
             }
         }
     }
@@ -420,7 +420,7 @@ extension ImmersiveView {
     }
     
     // MARK: — Ended-handlers
-    private func toggleExternalStrokeWindow() {
+    private func toggleStrokeWindow() {
         if !isFileManagerActive {
             openWindow(id: "ExternalStroke")
         } else {
@@ -428,13 +428,13 @@ extension ImmersiveView {
                 let id: Int = element.key
                 let affineMatrix: simd_float4x4 = element.value
                 
-                let transformedExternalStrokes: [ExternalStroke] = appModel.rpcModel.painting.paintingCanvas.tmpStrokes.map { (stroke:Stroke) in
+                let transformedStrokes: [Stroke] = appModel.rpcModel.painting.paintingCanvas.tmpStrokes.map { (stroke:Stroke) in
                     let transformedPoints: [SIMD3<Float>] = stroke.points.map { (point: SIMD3<Float>) in
-                        let position = SIMD4<Float>(point.x, point.y, point.z, 1.0)
+                        let position = SIMD4<Float>(point, 1.0)
                         let transformed = affineMatrix * (stroke.entity.transformMatrix(relativeTo: nil) * position)
-                        return SIMD3<Float>(transformed.x, transformed.y, transformed.z)
+                        return transformed.xyz
                     }
-                    return ExternalStroke(points: transformedPoints, color: stroke.activeColor)
+                    return Stroke(uuid: UUID(), points: transformedPoints, color: stroke.activeColor)
                 }
                 
                 _ = appModel.rpcModel.sendRequest(
@@ -442,7 +442,7 @@ extension ImmersiveView {
                         peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
                         method: .confirmTmpStrokes,
                         param: .confirmTmpStrokes(
-                            .init(externalStrokes: transformedExternalStrokes)
+                            .init(strokes: transformedStrokes)
                         )
                     ),
                     mcPeerId: id

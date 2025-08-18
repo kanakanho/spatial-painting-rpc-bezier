@@ -34,7 +34,7 @@ class ExternalStrokeFileWapper {
     }
     
     /// 外部に保存する
-    func writeStroke(externalStrokes : [ExternalStroke], displayScale: CGFloat, planeNormalVector: SIMD3<Float>, planePoint: SIMD3<Float>) {
+    func writeStroke(strokes : [Stroke], displayScale: CGFloat, planeNormalVector: SIMD3<Float>, planePoint: SIMD3<Float>) {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let nowDate = Date()
@@ -45,11 +45,11 @@ class ExternalStrokeFileWapper {
             let directoryURL = jsonFileURL.deletingLastPathComponent()
             try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true, attributes: nil)
             
-            let data = try encoder.encode(externalStrokes)
+            let data = try encoder.encode(strokes)
             try data.write(to: jsonFileURL)
             print("File written to: \(jsonFileURL.path)")
             
-            guard let imageData = makePNGData(strokes: externalStrokes, planeNormal: planeNormalVector, planePoint: planePoint, displayScale: displayScale) else {
+            guard let imageData = makePNGData(strokes: strokes, planeNormal: planeNormalVector, planePoint: planePoint, displayScale: displayScale) else {
                 print("Error converting image to PNG data")
                 return
             }
@@ -75,7 +75,7 @@ class ExternalStrokeFileWapper {
     }
     
     /// ストロークから画像を作る
-    private func makePNGData(strokes: [ExternalStroke], planeNormal: SIMD3<Float>, planePoint: SIMD3<Float>, displayScale: CGFloat) -> Data? {
+    private func makePNGData(strokes: [Stroke], planeNormal: SIMD3<Float>, planePoint: SIMD3<Float>, displayScale: CGFloat) -> Data? {
         let canvasSize = CGSize(width: 1024, height: 1024)
         /*
          let n = normalize(planeNormal)
@@ -140,7 +140,7 @@ class ExternalStrokeFileWapper {
         
         // 描画
         for (idx, stroke) in strokes.enumerated() {
-            ctx.setStrokeColor(stroke.color.cgColor)
+            ctx.setStrokeColor(stroke.activeColor.cgColor)
             let proj = all2D[idx]
             guard proj.count > 1 else { continue }
             ctx.beginPath()
@@ -239,12 +239,12 @@ class ExternalStrokeFileWapper {
     }
     
     /// jsonを取得する
-    func readStrokes(in dateStr: String) -> [ExternalStroke] {
+    func readStrokes(in dateStr: String) -> [Stroke] {
         do {
             let jsonFileURL = fileDir.appendingPathComponent("\(dateStr)/strokes.json")
             let data = try Data(contentsOf: jsonFileURL)
             let decoder = JSONDecoder()
-            let strokes = try decoder.decode([ExternalStroke].self, from: data)
+            let strokes = try decoder.decode([Stroke].self, from: data)
             return strokes
         }
         catch {

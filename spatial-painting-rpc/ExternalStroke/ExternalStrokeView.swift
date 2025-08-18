@@ -58,8 +58,7 @@ struct ExternalStrokeView: View {
             } else {
                 // 保存
                 Button("Save Stroke") {
-                    let externalStrokes: [ExternalStroke] = .init(strokes: appModel.rpcModel.painting.paintingCanvas.strokes , initPoint: .one)
-                    appModel.externalStrokeFileWapper.writeStroke(externalStrokes: externalStrokes, displayScale: displayScale, planeNormalVector: .one, planePoint: .one)
+                    appModel.externalStrokeFileWapper.writeStroke(strokes: appModel.rpcModel.painting.paintingCanvas.strokes, displayScale: displayScale, planeNormalVector: .one, planePoint: .one)
                     fileList = appModel.externalStrokeFileWapper.listDirs().map { $0.lastPathComponent }.sorted(by: >)
                     imageURLs = loadThumbnails()
                     if fileList.count == 1 {
@@ -95,8 +94,7 @@ struct ExternalStrokeView: View {
                                 selectedFile = comps[comps.count - 2]
                             }
                             if !selectedFile.isEmpty {
-                                let externalStrokes = appModel.externalStrokeFileWapper.readStrokes(in: selectedFile)
-                                appModel.rpcModel.painting.paintingCanvas.addTmpStrokes(externalStrokes.strokes(initPoint: .one))
+                                appModel.rpcModel.painting.paintingCanvas.addTmpStrokes(appModel.externalStrokeFileWapper.readStrokes(in: selectedFile))
                             }
                         } else {
                             appModel.rpcModel.painting.paintingCanvas.clearTmpStrokes()
@@ -106,20 +104,21 @@ struct ExternalStrokeView: View {
                 // ロードしたデータの確定
                 Button("Confirm Loaded Stroke") {
                     for (id,affineMatrix) in appModel.rpcModel.coordinateTransforms.affineMatrixs {
-                        let transformedExternalStrokes = appModel.rpcModel.painting.paintingCanvas.tmpStrokes.map({ stroke in
+                        let transformedStrokes = appModel.rpcModel.painting.paintingCanvas.tmpStrokes.map({ (stroke: Stroke) in
                             // points 全てにアフィン変換を適用
-                            let transformedPoints = stroke.points.map { point in
-                                let matrix:[Double] = [point.x.toDouble(), point.y.toDouble(), point.z.toDouble(), 1.0]
-                                let clientPos = matmul4x4_4x1(affineMatrix.doubleList, matrix)
-                                return SIMD3<Float>(Float(clientPos[0]), Float(clientPos[1]), Float(clientPos[2]))
+                            let tmpRootTransfromPoints: [SIMD4<Float>] = stroke.points.map { (point: SIMD3<Float>) in
+                                return stroke.entity.transformMatrix(relativeTo: nil) * SIMD4<Float>(point, 1.0)
                             }
-                            return ExternalStroke(points: transformedPoints, color: stroke.activeColor, maxRadius: stroke.maxRadius)
+                            let transformedPoints = tmpRootTransfromPoints.map { (point: SIMD4<Float>) in
+                                matmul4x4_4x1(affineMatrix, point)
+                            }
+                            return Stroke(uuid: UUID(), points: transformedPoints, color: stroke.activeColor, maxRadius: stroke.maxRadius)
                         })
                         _ = appModel.rpcModel.sendRequest(
                             .init(
                                 peerId: appModel.mcPeerIDUUIDWrapper.mine.hash,
                                 method: .addStrokes,
-                                param: .addStrokes(.init(externalStrokes: transformedExternalStrokes))
+                                param: .addStrokes(.init(strokes: transformedStrokes))
                             ),
                             mcPeerId: id
                         )
@@ -129,7 +128,6 @@ struct ExternalStrokeView: View {
                     isLoading = false
                 }
                 .padding(.bottom, 20)
-                //                .disabled(!appModel.model.canvas.tmpStrokes.isEmpty)
                 .disabled(!appModel.rpcModel.painting.paintingCanvas.tmpStrokes.isEmpty)
                 
             }
