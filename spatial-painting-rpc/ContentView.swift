@@ -22,10 +22,6 @@ struct ContentView: View {
     
     @Environment(\.openWindow) private var openWindow
     
-    var timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-    var startTime = Date()
-    @State var isStartImmersiveSpace: Bool = false
-    
     var body: some View {
         VStack {
             Button("File Manager") {
@@ -35,7 +31,6 @@ struct ContentView: View {
             
             ToggleImmersiveSpaceButton()
                 .environmentObject(appModel)
-                .disabled(!isStartImmersiveSpace)
             NavigationStack {
                 switch sharedCoordinateState {
                 case .prepare:
@@ -76,18 +71,6 @@ struct ContentView: View {
                 sharedCoordinateState = .prepare
                 appModel.mcPeerIDUUIDWrapper.standby.removeAll()
                 appModel.peerManager.stop()
-            }
-        }
-        .onReceive(timer) { _ in
-            // 5秒後にImmersive Spaceを開く
-            if  !isStartImmersiveSpace {
-                let elapsedTime = Date().timeIntervalSince(startTime)
-                if elapsedTime >= 6 {
-                    isStartImmersiveSpace = true
-                }
-            } else {
-                // timerを停止
-                timer.upstream.connect().cancel()
             }
         }
     }

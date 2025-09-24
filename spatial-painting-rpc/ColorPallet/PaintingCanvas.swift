@@ -177,6 +177,8 @@ class PaintingCanvas {
             
             // Clear the current stroke.
             currentStroke = nil
+            
+            stroke.finishRemesh()
         }
     }
     
@@ -211,6 +213,8 @@ class PaintingCanvas {
         
         strokes.append(newStroke)
         root.addChild(newStroke.entity)
+        
+        stroke.finishRemesh()
     }
 }
 
@@ -302,6 +306,8 @@ extension PaintingCanvas {
                 }
                 count += 1
             }
+            
+            stroke.finishRemesh()
         }
         
         // root から tmpStrokes のエンティティを削除

@@ -40,6 +40,12 @@ class Stroke: Codable {
         maxRadius = radius
     }
     
+    var fittedBeziers: [[SIMD3<Double>]] = []
+    
+    func makeFittedBeziers() {
+        fittedBeziers = points2fittedBeziers(points: points)
+    }
+    
     /// 元の maxRadius を保持するプロパティを追加（初期値 1E-2）
     var originalMaxRadius: Float {
         return 1E-2
@@ -112,6 +118,24 @@ class Stroke: Codable {
             // Set the entity's transform and position.
             entity.setTransformMatrix(.identity, relativeTo: nil)
             entity.setPosition(center, relativeTo: nil)
+        }
+    }
+    
+    func finishRemesh() {
+        DispatchQueue.global(qos: .userInitiated).async {
+            self.makeFittedBeziers()
+        }
+        DispatchQueue.main.async {
+            do {
+                let mesh = try MeshResource.generateLine(from: self.fittedBeziers, thickness: self.maxRadius)
+                // Set the model component to the new mesh, and assign a simple material.
+                self.entity.components.set(ModelComponent(
+                    mesh: mesh,
+                    materials: [SimpleMaterial(color: self.activeColor, roughness: 1.0, isMetallic: false)]
+                ))
+            } catch {
+                print("Error generating line mesh: \(error.localizedDescription)")
+            }
         }
     }
     
